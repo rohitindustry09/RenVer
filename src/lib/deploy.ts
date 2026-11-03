@@ -27,6 +27,7 @@ import {
   waitHealthy,
 } from "./docker";
 import { generateDockerfile } from "./dockerfile";
+import { prepareAppUrls } from "./env-urls";
 import { joinLinkedDatabases } from "./isolation";
 import { getPanelHost } from "./panel-host";
 import { appNetworkName } from "./network-names";
@@ -133,7 +134,9 @@ async function buildAndStart(
 ): Promise<Release> {
   const container = `renver-${project.subdomain}-${deployId}`;
   const tag = `renver/${project.subdomain}:${deployId}`;
-  const env = decryptEnv(project.envEncrypted);
+  const prepared = prepareAppUrls(decryptEnv(project.envEncrypted), project.primaryHost);
+  const env = prepared.env;
+  for (const note of prepared.notes) log(note);
   const containerPort = prepareBuildContext(project, sourceDir, Object.keys(env));
 
   updateDeploy(deployId, "building");

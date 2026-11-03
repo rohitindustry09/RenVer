@@ -1,3 +1,4 @@
+import { normalizeEnvValue } from "./env-urls";
 import type { ProjectConfig } from "./db";
 import type { DetectionResult } from "./detect";
 
@@ -61,7 +62,7 @@ export function parseEnv(input: unknown): Record<string, string> {
     if (!ENV_KEY_PATTERN.test(key)) throw new Error(`Invalid environment variable name: ${key}`);
     if (isReservedEnvKey(key)) throw new Error(`Environment variable ${key} is reserved.`);
     if (typeof value !== "string") throw new Error(`Environment variable ${key} must be a string.`);
-    result[key] = value;
+    result[key] = normalizeEnvValue(key, value);
   }
   return result;
 }

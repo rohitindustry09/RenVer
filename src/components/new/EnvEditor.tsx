@@ -2,6 +2,7 @@
 
 import { useRef, useState, type ChangeEvent, type ClipboardEvent } from "react";
 import { mergeEnvRows, parseEnvPaste, type EnvRow } from "@/lib/env-text";
+import { normalizeEnvValue } from "@/lib/env-urls";
 
 interface Props {
   rows: EnvRow[];
@@ -79,6 +80,10 @@ export function EnvEditor({ rows, onChange }: Props) {
             type={isRevealed ? "text" : "password"}
             value={row.value}
             onChange={(e) => update(index, { value: e.target.value })}
+            onBlur={() => {
+              const fixed = normalizeEnvValue(row.key.trim(), row.value);
+              if (fixed !== row.value) update(index, { value: fixed });
+            }}
             autoComplete="new-password"
             spellCheck={false}
           />
