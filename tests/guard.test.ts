@@ -95,6 +95,40 @@ describe("guardRequest: guessing the password", () => {
   });
 });
 
+describe("guardRequest: allowed addresses", () => {
+  const from = (ip: string) => get({ "x-forwarded-for": ip });
+
+  it("refuses addresses that are not on the list, before asking for a password", async () => {
+    vi.stubEnv("RENVER_ALLOWED_IPS", "203.0.113.7, 10.0.0.0/8");
+    vi.stubEnv("RENVER_ADMIN_PASSWORD", "s3cret");
+    expect((await guardRequest(from("198.51.100.1")))?.status).toBe(403);
+  });
+
+  it("lets listed addresses carry on to the normal login", async () => {
+    vi.stubEnv("RENVER_ALLOWED_IPS", "203.0.113.7, 10.0.0.0/8");
+    vi.stubEnv("RENVER_ADMIN_PASSWORD", "s3cret");
+    expect((await guardRequest(from("10.4.5.6")))?.status).toBe(401);
+    expect(await guardRequest(get({ "x-forwarded-for": "203.0.113.7", authorization: basic("s3cret") }))).toBeNull();
+  });
+
+  it("always lets the machine itself in", async () => {
+    vi.stubEnv("RENVER_ALLOWED_IPS", "203.0.113.7");
+    expect(await guardRequest(get())).toBeNull();
+    expect(await guardRequest(from("127.0.0.1"))).toBeNull();
+  });
+
+  it("shuts everyone but the machine out when the list is broken, rather than opening the panel", async () => {
+    vi.stubEnv("RENVER_ALLOWED_IPS", "203.0.113.7, oops");
+    expect((await guardRequest(from("203.0.113.7")))?.status).toBe(403);
+    expect(await guardRequest(get())).toBeNull();
+  });
+
+  it("changes nothing when no list is set", async () => {
+    vi.stubEnv("RENVER_ALLOWED_IPS", "");
+    expect(await guardRequest(from("198.51.100.1"))).toBeNull();
+  });
+});
+
 describe("middleware matcher", () => {
   it("skips only the streaming upload routes, which guard themselves", async () => {
     const { pathToRegexp } = await import("next/dist/compiled/path-to-regexp");

@@ -3,7 +3,9 @@ import path from "node:path";
 export type RunMode = "local" | "production";
 
 const DEFAULT_HOST_PORT_START = 4001;
-const PANEL_PORT = 3000;
+const DEFAULT_PANEL_PORT = 3000;
+/** The launcher (scripts/launcher.mjs) sets RENVER_PORT to the port it actually found free. */
+const PANEL_PORT = Number(process.env.RENVER_PORT || process.env.PORT || DEFAULT_PANEL_PORT);
 
 const mode: RunMode = process.env.RENVER_MODE === "production" ? "production" : "local";
 

@@ -51,6 +51,8 @@ export async function restoreLive(input: {
   verify?: () => void;
   /** Makes the backup of the current state that lets a restore be undone. Defaults to a plain manual backup. */
   safetyBackup?: () => Promise<{ name: string }>;
+  /** Needed when the backup is encrypted. */
+  passphrase?: string;
 }): Promise<RestoreSummary> {
   const dataDir = input.dataDir ?? config.dataDir;
   const verify = input.verify ?? defaultVerify;
@@ -67,14 +69,14 @@ export async function restoreLive(input: {
   if (busy) throw new RestoreError(busy, 409);
 
   try {
-    await validateBackupArchive(file);
+    await validateBackupArchive(file, input.passphrase);
   } catch (error) {
     throw new RestoreError(messageOf(error, "This file is not a RenVer backup."), 400);
   }
 
   let prepared: Awaited<ReturnType<typeof prepareRestore>>;
   try {
-    prepared = await prepareRestore({ file, dataDir });
+    prepared = await prepareRestore({ file, dataDir, passphrase: input.passphrase });
   } catch (error) {
     throw new RestoreError(messageOf(error, "This backup could not be prepared."), 400);
   }

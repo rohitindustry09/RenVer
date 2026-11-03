@@ -14,10 +14,18 @@ const ENV_KEY_PATTERN = /^[A-Za-z_][A-Za-z0-9_]*$/;
 const NODE_VERSION_PATTERN = /^\d{1,2}$/;
 const OUTPUT_DIR_PATTERN = /^[\w./-]+$/;
 const NGINX_CONF_NAME = "renver-nginx.conf";
+/**
+ * A site with no build step is served straight from the uploaded folder, so everything in it would be downloadable.
+ * Hidden files (.env, .git), source maps (which expose the original source) and the project's own config are refused.
+ */
 const NGINX_CONF = `server {
   listen 80;
+  server_tokens off;
   root /usr/share/nginx/html;
   index index.html;
+  location ~ /\\. { return 404; }
+  location ~* \\.map$ { return 404; }
+  location ~* ^/(Dockerfile|renver-nginx\\.conf|package(-lock)?\\.json|pnpm-lock\\.yaml|yarn\\.lock|bun\\.lockb?|tsconfig[^/]*\\.json|\\.env[^/]*)$ { return 404; }
   location / {
     try_files $uri /index.html;
   }

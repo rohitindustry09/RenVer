@@ -46,6 +46,14 @@ You need a Linux server (Ubuntu 22.04+ or Debian 12+, 2 GB RAM or more) and a do
 
 Updating RenVer later: copy the new code, then `npm ci && npm run build && sudo systemctl restart renver`. Your projects keep running while it restarts.
 
+### Which port RenVer uses
+
+`npm start`, `npm run dev` and the service all start RenVer through `scripts/launcher.mjs`. It uses port 3000, or `RENVER_PORT` if you set one. **If that port is taken it picks the next free one** and tells you, and the panel's proxy route follows automatically, so nothing needs changing.
+
+It also refuses to start a **second** RenVer on the same data folder (two panels sharing one database would run every backup and check twice). It prints where the running one is instead. The lock lives in `data/.renver.lock` and is ignored once that process is gone, so a crash never blocks the next start.
+
+In `scripts/renver.service`, if `node` is not at `/usr/bin/node` on your server (for example it was installed with nvm), change the `ExecStart` path (`which node` shows it).
+
 ### What those commands do
 
 ```bash
@@ -73,7 +81,7 @@ systemd does the same job as PM2 (keep it running in the background, restart it 
 
 ```bash
 npm install -g pm2
-pm2 start "npx next start -H 127.0.0.1 -p 3000" --name renver
+pm2 start scripts/launcher.mjs --name renver -- start
 pm2 startup && pm2 save            # start at boot
 ```
 

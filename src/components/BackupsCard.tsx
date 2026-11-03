@@ -117,6 +117,7 @@ function ScheduleBlock({ schedule, onSaved }: { schedule: Schedule; onSaved: () 
 interface BackupItem {
   name: string;
   bytes: number;
+  encrypted: boolean;
   kind: "auto" | "manual" | "full";
   createdAt: string;
   file: string;
@@ -159,6 +160,24 @@ export function BackupsCard() {
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
   const [deletingName, setDeletingName] = useState<string | null>(null);
   const [restoringName, setRestoringName] = useState<string | null>(null);
+  const { data: security } = useFetch<{ isEncrypting: boolean }>("/api/backups/security");
+  const [passphrase, setPassphrase] = useState("");
+
+  /** Backups made on another server can be encrypted with a passphrase this one does not have set. */
+  const needsPassphrase = (backup: BackupItem): boolean => backup.encrypted && !security?.isEncrypting;
+  const passphraseField = (
+    <label className="field">
+      <span className="label">Backup passphrase</span>
+      <input
+        className="input"
+        type="password"
+        autoComplete="off"
+        value={passphrase}
+        onChange={(e) => setPassphrase(e.target.value)}
+        placeholder="The passphrase this backup was encrypted with"
+      />
+    </label>
+  );
   const fileInput = useRef<HTMLInputElement>(null);
 
   const run = async (kind: Exclude<Busy, null>, task: () => Promise<string>) => {
@@ -199,7 +218,7 @@ export function BackupsCard() {
       const summary = await api<RestoreSummary>("/api/backups/restore", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: backup.name }),
+        body: JSON.stringify({ name: backup.name, passphrase: needsPassphrase(backup) ? passphrase : undefined }),
       });
       setTimeout(() => window.location.reload(), RELOAD_DELAY_MS);
       const paused = summary.paused ? ` ${summary.paused.projects} project(s) and ${summary.paused.databases} database(s) are paused: resume each one when you want it running.` : "";
@@ -214,7 +233,7 @@ export function BackupsCard() {
     void run("upload", async () => {
       const info = await api<BackupItem>("/api/backups/upload", {
         method: "POST",
-        headers: { "Content-Type": "application/gzip" },
+        headers: { "Content-Type": "application/gzip", ...(passphrase ? { "x-backup-passphrase": passphrase } : {}) },
         body: file,
       });
       return `Uploaded as ${info.name}. Press Restore on it to use it.`;
@@ -232,6 +251,12 @@ export function BackupsCard() {
           A copy of everything: your projects, domains, settings and the data inside your databases, plus the key that unlocks stored
           passwords. Set when the daily automatic backup runs below.
         </p>
+        {security && !security.isEncrypting && (
+          <p className="notice warn" role="status" style={{ marginTop: 12 }}>
+            New backups are <strong>not encrypted</strong>, and each one contains your encryption key. Set{" "}
+            <span className="mono">RENVER_BACKUP_PASSPHRASE</span> on the server and restart RenVer so anyone who gets a backup file cannot read it.
+          </p>
+        )}
       </div>
 
       {schedule && <ScheduleBlock key={`${schedule.enabled}-${schedule.time}`} schedule={schedule} onSaved={() => void reloadSchedule()} />}
@@ -244,7 +269,9 @@ export function BackupsCard() {
             <Fragment key={backup.name}>
               <li className="row">
                 <div className="row-main">
-                  <div className="row-title">{KIND_LABEL[backup.kind]}</div>
+                  <div className="row-title">
+                    {KIND_LABEL[backup.kind]}{backup.encrypted && <> <span className="badge">Encrypted</span></>}
+                  </div>
                   <div className="row-desc">
                     <strong style={{ fontWeight: 500, color: "var(--text)" }}>{formatDateTime(backup.createdAt)}</strong>
                     {" · "}{timeAgo(backup.createdAt)}{" · "}{sizeLabel(backup.bytes)}
@@ -271,6 +298,7 @@ export function BackupsCard() {
                       A backup of the current state is saved first, so you can undo it.
                     </>
                   }
+                  extra={needsPassphrase(backup) ? passphraseField : undefined}
                   confirmLabel="Restore"
                   busyLabel="Restoring…"
                   isBusy={busy === `restore:${backup.name}`}
@@ -301,8 +329,22 @@ export function BackupsCard() {
         <span className="label" style={{ fontWeight: 500 }}>Restoring on a new server, or when RenVer won&apos;t start</span>
         <p className="sub">
           Upload the backup file here and press Restore. If RenVer can&apos;t start, stop it and run this in its folder instead; the
-          database it replaces is kept beside it so you can undo.
+          database it replaces is kept beside it so you can undo. For an encrypted backup add its passphrase in front of the command:
+          <span className="mono"> RENVER_BACKUP_PASSPHRASE=… </span>
         </p>
+        {security && !security.isEncrypting && (
+          <label className="field">
+            <span className="label">Passphrase for an encrypted backup you are uploading</span>
+            <input
+              className="input"
+              type="password"
+              autoComplete="off"
+              value={passphrase}
+              onChange={(e) => setPassphrase(e.target.value)}
+              placeholder="Only needed if the backup is encrypted and this server has no passphrase set"
+            />
+          </label>
+        )}
         <div className="toolbar">
           <code className="mono grow" style={{ overflowWrap: "anywhere", fontSize: 12 }}>{restoreCommand}</code>
           <CopyButton text={restoreCommand} label="Copy" />
@@ -319,7 +361,7 @@ export function BackupsCard() {
           ref={fileInput}
           type="file"
           className="sr-only"
-          accept=".gz,.tgz,application/gzip,application/x-gzip"
+          accept=".gz,.tgz,.enc,application/gzip,application/x-gzip,application/octet-stream"
           aria-label="Choose a backup file to upload"
           onChange={(e) => upload(e.target.files?.[0])}
         />

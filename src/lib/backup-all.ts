@@ -2,6 +2,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { createBackup, type BackupInfo, type BackupKind, type DumpToInclude } from "./backup";
+import { backupPassphrase } from "./backup-passphrase";
 import { config } from "./config";
 import { listDatabaseRecords } from "./db";
 import { dumpCommand } from "./database-spec";
@@ -41,7 +42,7 @@ export async function createBackupWithDatabases(kind: BackupKind): Promise<FullB
         skipped.push({ name: record.name, reason: error instanceof Error ? error.message : "It could not be read." });
       }
     }
-    const info = await createBackup({ dataDir: config.dataDir, kind, dumps });
+    const info = await createBackup({ dataDir: config.dataDir, kind, dumps, passphrase: backupPassphrase() });
     return { ...info, databases, skipped };
   } finally {
     fs.rmSync(scratch, { recursive: true, force: true });

@@ -6,6 +6,7 @@ import { pipeline } from "node:stream/promises";
 import type { ReadableStream as NodeWebStream } from "node:stream/web";
 import { fail, failFrom, ok } from "@/lib/api";
 import { adoptUploadedBackup } from "@/lib/backup";
+import { backupPassphrase } from "@/lib/backup-passphrase";
 import { describeBackup } from "@/lib/backup-view";
 import { config } from "@/lib/config";
 import { guardRequest } from "@/lib/guard";
@@ -52,7 +53,9 @@ export async function POST(request: Request) {
 
   try {
     await pipeline(Readable.fromWeb(request.body as unknown as NodeWebStream), limitBytes(MAX_UPLOAD_BYTES), fs.createWriteStream(partial));
-    const info = await adoptUploadedBackup({ dataDir: config.dataDir, file: partial });
+    // An encrypted backup needs its passphrase to be checked: the one typed in the panel, or this server's own.
+    const typed = request.headers.get("x-backup-passphrase");
+    const info = await adoptUploadedBackup({ dataDir: config.dataDir, file: partial, passphrase: typed ? typed : backupPassphrase() });
     return ok(describeBackup(info), 201);
   } catch (error) {
     return failFrom(error);

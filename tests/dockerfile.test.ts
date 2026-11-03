@@ -45,6 +45,20 @@ describe("generateDockerfile", () => {
     expect(out.dockerfile).toContain("FROM node:20-slim");
   });
 
+  it("never serves hidden files, source maps or the project's own config from a static site", () => {
+    const conf = generateDockerfile(
+      { ...detectProject({ exists: () => false, read: () => null }), framework: "static", kind: "static", outputDir: ".", buildCommand: null },
+      { envKeys: [] },
+    )!.extraFiles["renver-nginx.conf"]!;
+    // Hidden files such as .env and .git, and source maps that would expose the original source.
+    expect(conf).toMatch(/location ~ \/\\\.[^{]*\{\s*return 404;/);
+    expect(conf).toMatch(/location ~\* \\\.map\$\s*\{\s*return 404;/);
+    // Files that only exist because of how the project was uploaded and built.
+    for (const name of ["Dockerfile", "renver-nginx\\.conf", "package", "\\.env"]) expect(conf).toContain(name);
+    // The normal site still works.
+    expect(conf).toContain("try_files $uri /index.html");
+  });
+
   it("serves static sites through nginx with SPA fallback", () => {
     const out = generateDockerfile(viteDetection, baseOptions)!;
     expect(out.dockerfile).toContain("AS build");

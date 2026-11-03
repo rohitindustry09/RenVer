@@ -9,7 +9,7 @@ You need Node.js 22+, Docker, Git and Caddy. The panel's Setup page checks these
 ```bash
 npm ci
 npm run build
-npm start            # http://127.0.0.1:3000
+npm start            # http://127.0.0.1:3000 (the next free port if 3000 is taken; it prints the address)
 ```
 
 For development with hot reload use `npm run dev` (slower: pages compile on first visit).
@@ -29,6 +29,7 @@ Running it on a server, starting it at boot, HTTPS and what to check before you 
 
 | Variable | Default | Meaning |
 |---|---|---|
+| `RENVER_PORT` | `3000` | Port the panel starts on; the next free one is used if it is taken |
 | `RENVER_MODE` | `local` | `production` makes the panel refuse to run without a password and turns on HTTPS-only headers |
 | `RENVER_ADMIN_PASSWORD` | (none) | Password for the panel (any username). Required in production |
 | `RENVER_BASE_DOMAIN` | `localhost` | The first domain, seeded on first start. More are added in the panel |
@@ -36,11 +37,15 @@ Running it on a server, starting it at boot, HTTPS and what to check before you 
 | `RENVER_DATA_DIR` | `./data` | Where the database, encryption key, sources, logs and backups live |
 | `RENVER_APP_MEMORY`, `RENVER_APP_CPUS` | `512m`, `1` | Starting limits per app (editable in Settings, and per project) |
 | `RENVER_HOST_PORT_START` | `4001` | First local port handed to an app |
+| `RENVER_BACKUP_PASSPHRASE` | (none) | Encrypts every new backup. Strongly recommended |
+| `RENVER_ALLOWED_IPS` | (none) | Only these addresses may reach the panel |
 | `RENVER_SECRET` | (none) | Optional encryption key (base64) instead of `data/secret.key` |
 
 Copy [.env.example](.env.example) to `.env` to set these (every line is documented there).
 
 ## Security
+
+Read [docs/SECURITY.md](docs/SECURITY.md) before putting real apps on it: it explains what is protected, what to switch on (backup encryption, an allowed-addresses list, private repo, disk encryption) and what no software can promise.
 
 - The panel can run code, so in production it needs `RENVER_ADMIN_PASSWORD`. Ten wrong passwords from one address lock that address out for 15 minutes.
 - Environment variables and database passwords are encrypted with a key in `data/secret.key`. Keep that file (it is inside every backup) and never share it.

@@ -24,7 +24,7 @@ Environment=RENVER_BASE_DOMAIN=example.com
 Environment=RENVER_PANEL_HOST=panel.example.com
 # Keep the real password out of this file if you can: put it in /etc/renver.env (chmod 600) and use EnvironmentFile instead.
 EnvironmentFile=-/etc/renver.env
-ExecStart=/usr/bin/npx next start -H 127.0.0.1 -p 3000
+ExecStart=/usr/bin/node scripts/launcher.mjs start
 Restart=always
 RestartSec=5
 

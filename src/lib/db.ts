@@ -3,6 +3,7 @@ import fs from "node:fs";
 import { randomUUID } from "node:crypto";
 import path from "node:path";
 import { config } from "./config";
+import { ensurePrivateDir } from "./private-dir";
 
 /** "paused" is on purpose (the owner stopped it); "stopped" means it went down and could not be brought back. */
 export type ProjectStatus = "created" | "deploying" | "running" | "failed" | "stopped" | "paused";
@@ -197,7 +198,7 @@ function open(): DatabaseSync {
     return globalDb.__renverDb;
   }
   const sqlite = process.getBuiltinModule("node:sqlite");
-  fs.mkdirSync(config.dataDir, { recursive: true });
+  ensurePrivateDir(config.dataDir);
   const db = new sqlite.DatabaseSync(path.join(config.dataDir, "renver.db"));
   db.exec("PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON;");
   migrate(db);

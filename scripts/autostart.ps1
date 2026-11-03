@@ -27,8 +27,8 @@ if (-not (Test-Path (Join-Path $AppDir ".next\BUILD_ID"))) {
   exit 1
 }
 
-$npx = (Get-Command npx.cmd -ErrorAction Stop).Source
-$command = "Set-Location -LiteralPath '$AppDir'; & '$npx' next start -H 127.0.0.1 -p 3000"
+$node = (Get-Command node.exe -ErrorAction Stop).Source
+$command = "Set-Location -LiteralPath '$AppDir'; & '$node' scripts/launcher.mjs start"
 $action = New-ScheduledTaskAction -Execute "powershell.exe" -Argument "-NoProfile -WindowStyle Hidden -Command `"$command`""
 $trigger = New-ScheduledTaskTrigger -AtLogOn -User $env:USERNAME
 $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -RestartCount 3 -RestartInterval (New-TimeSpan -Minutes 1) -ExecutionTimeLimit ([TimeSpan]::Zero)

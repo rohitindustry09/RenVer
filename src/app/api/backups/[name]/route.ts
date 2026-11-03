@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import { Readable } from "node:stream";
 import { fail, ok } from "@/lib/api";
-import { backupPath, deleteBackup } from "@/lib/backup";
+import { backupPath, deleteBackup, isEncryptedBackupName } from "@/lib/backup";
 import { config } from "@/lib/config";
 
 export const runtime = "nodejs";
@@ -17,7 +17,7 @@ export async function GET(_request: Request, { params }: Context) {
     if (!fs.existsSync(file)) return fail("Backup not found.", 404);
     return new Response(Readable.toWeb(fs.createReadStream(file)) as ReadableStream, {
       headers: {
-        "Content-Type": "application/gzip",
+        "Content-Type": isEncryptedBackupName(name) ? "application/octet-stream" : "application/gzip",
         "Content-Length": String(fs.statSync(file).size),
         "Content-Disposition": `attachment; filename="${name}"`,
         "Cache-Control": "no-store",

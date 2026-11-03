@@ -4,10 +4,10 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "next dev -H 127.0.0.1 -p 3000",
+    "dev": "node scripts/launcher.mjs dev",
     "build": "next build",
-    "start": "next start -H 127.0.0.1 -p 3000",
-    "serve": "next build && next start -H 127.0.0.1 -p 3000",
+    "start": "node scripts/launcher.mjs start",
+    "serve": "next build && node scripts/launcher.mjs start",
     "test": "vitest run",
     "preflight": "node src/lib/preflight-cli.ts",
     "restore": "node src/lib/restore-cli.ts"

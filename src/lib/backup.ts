@@ -3,6 +3,7 @@ import { randomBytes } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { promisify } from "node:util";
+import { decryptFile, encryptFile, isEncryptedFile } from "./backup-crypto";
 import { dumpPath, parseDumpName } from "./db-dumps";
 
 /**
@@ -17,7 +18,12 @@ const run = promisify(execFile);
 
 export type BackupKind = "auto" | "manual" | "full";
 
+/** Encrypted backups end in ".enc" (see backup-crypto.ts). */
+const ENCRYPTED_SUFFIX = ".enc";
+
 export interface BackupInfo {
+  /** Whether the file is encrypted with a passphrase and needs it to be read. */
+  encrypted: boolean;
   name: string;
   bytes: number;
   createdAt: Date;
@@ -42,7 +48,7 @@ const DUMPS_DIR = "db-dumps";
 export const RESTORE_MARKER_FILE = "restore-pending.json";
 const MANIFEST_FILE = "MANIFEST.json";
 const MANIFEST_FORMAT = 1;
-const NAME_PATTERN = /^renver-backup-(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z-(auto|manual|full)\.tar\.gz$/;
+const NAME_PATTERN = /^renver-backup-(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z-(auto|manual|full)\.tar\.gz(?:\.enc)?$/;
 const TAR_TIMEOUT_MS = 10 * 60 * 1000;
 const MAX_LISTING_BYTES = 256 * 1024 * 1024;
 export const KEEP_AUTO_BACKUPS = 7;
@@ -52,9 +58,30 @@ const KINDS: readonly BackupKind[] = ["auto", "manual", "full"];
 const ALLOWED_ENTRIES = new Set([MANIFEST_FILE, DB_FILE, KEY_FILE, UPLOADS_DIR, DUMPS_DIR]);
 const NOT_A_BACKUP = "This file is not a RenVer backup.";
 
-export function backupFileName(date: Date, kind: BackupKind): string {
+const NEEDS_PASSPHRASE = "This backup is encrypted. Enter its passphrase (or set RENVER_BACKUP_PASSPHRASE on this server).";
+
+export function backupFileName(date: Date, kind: BackupKind, encrypted = false): string {
   const stamp = date.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}Z$/, "Z");
-  return `renver-backup-${stamp}-${kind}.tar.gz`;
+  return `renver-backup-${stamp}-${kind}.tar.gz${encrypted ? ENCRYPTED_SUFFIX : ""}`;
+}
+
+export const isEncryptedBackupName = (name: string): boolean => name.endsWith(ENCRYPTED_SUFFIX);
+
+/**
+ * Runs `task` on a readable (plain) copy of the archive. An encrypted backup is decrypted to a short-lived copy in
+ * `scratchDir` first, and that copy is always deleted afterwards.
+ */
+async function withPlainArchive<T>(file: string, passphrase: string | undefined, scratchDir: string, task: (plain: string) => Promise<T>): Promise<T> {
+  if (!isEncryptedFile(file)) return task(file);
+  if (!passphrase) throw new Error(NEEDS_PASSPHRASE);
+  fs.mkdirSync(scratchDir, { recursive: true });
+  const plain = path.join(scratchDir, `.plain-${randomBytes(6).toString("hex")}.tar.gz`);
+  try {
+    await decryptFile(file, plain, passphrase);
+    return await task(plain);
+  } finally {
+    fs.rmSync(plain, { force: true });
+  }
 }
 
 export function parseBackupName(name: string): { createdAt: Date; kind: BackupKind } | null {
@@ -131,8 +158,16 @@ export interface DumpToInclude {
   file: string;
 }
 
-export async function createBackup(input: { dataDir: string; kind: BackupKind; now?: Date; dumps?: DumpToInclude[] }): Promise<BackupInfo> {
+export async function createBackup(input: {
+  dataDir: string;
+  kind: BackupKind;
+  now?: Date;
+  dumps?: DumpToInclude[];
+  /** When given, the backup is encrypted with it and can only be read with it. */
+  passphrase?: string;
+}): Promise<BackupInfo> {
   const { dataDir, kind } = input;
+  const encrypted = Boolean(input.passphrase);
   const dumps = input.dumps ?? [];
   if (dumps.some((dump) => parseDumpName(dump.name) === null)) throw new Error("Invalid dump name.");
   const dbPath = path.join(dataDir, DB_FILE);
@@ -142,11 +177,13 @@ export async function createBackup(input: { dataDir: string; kind: BackupKind; n
   fs.mkdirSync(dir, { recursive: true });
 
   const when = freeStamp(dir, input.now ?? new Date(), kind);
-  const name = backupFileName(when, kind);
+  const name = backupFileName(when, kind, encrypted);
 
   const stagingName = `.staging-${randomBytes(6).toString("hex")}`;
   const staging = path.join(dir, stagingName);
   const partial = `${name}.partial`;
+  // An encrypted backup is first written as a plain archive under another name, then encrypted, and that copy is deleted.
+  const plainPartial = `${partial}.plain`;
   fs.mkdirSync(staging);
   try {
     snapshotDatabase(dbPath, path.join(staging, DB_FILE));
@@ -175,19 +212,27 @@ export async function createBackup(input: { dataDir: string; kind: BackupKind; n
     };
     fs.writeFileSync(path.join(staging, MANIFEST_FILE), JSON.stringify(manifest, null, 2));
 
-    await tar(["-czf", partial, "-C", stagingName, "."], dir);
+    if (encrypted) {
+      await tar(["-czf", plainPartial, "-C", stagingName, "."], dir);
+      await encryptFile(path.join(dir, plainPartial), path.join(dir, partial), input.passphrase!);
+    } else {
+      await tar(["-czf", partial, "-C", stagingName, "."], dir);
+    }
     fs.renameSync(path.join(dir, partial), path.join(dir, name));
   } finally {
     fs.rmSync(staging, { recursive: true, force: true });
     fs.rmSync(path.join(dir, partial), { force: true });
+    fs.rmSync(path.join(dir, plainPartial), { force: true });
   }
-  return { name, bytes: fs.statSync(path.join(dir, name)).size, createdAt: when, kind };
+  return { name, bytes: fs.statSync(path.join(dir, name)).size, createdAt: when, kind, encrypted };
 }
 
-/** The first timestamp at or after `start` that no existing backup of this kind uses. */
+/** The first timestamp at or after `start` that no existing backup of this kind uses, encrypted or not. */
 function freeStamp(dir: string, start: Date, kind: BackupKind): Date {
   let when = start;
-  while (fs.existsSync(path.join(dir, backupFileName(when, kind)))) when = new Date(when.getTime() + 1000);
+  const taken = (at: Date): boolean =>
+    fs.existsSync(path.join(dir, backupFileName(at, kind))) || fs.existsSync(path.join(dir, backupFileName(at, kind, true)));
+  while (taken(when)) when = new Date(when.getTime() + 1000);
   return when;
 }
 
@@ -198,7 +243,7 @@ export function listBackups(dataDir: string): BackupInfo[] {
     .readdirSync(dir)
     .flatMap((name) => {
       const parsed = parseBackupName(name);
-      return parsed ? [{ name, bytes: fs.statSync(path.join(dir, name)).size, ...parsed }] : [];
+      return parsed ? [{ name, bytes: fs.statSync(path.join(dir, name)).size, encrypted: isEncryptedBackupName(name), ...parsed }] : [];
     })
     .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
 }
@@ -242,7 +287,11 @@ function assertSafeEntry(raw: string): string | null {
  * Checks an archive WITHOUT extracting it: every entry must be a plain file or folder with a safe path and one of
  * the few names RenVer writes, and the manifest must be present and readable. Run before anything touches disk.
  */
-export async function validateBackupArchive(file: string): Promise<BackupManifest> {
+export async function validateBackupArchive(file: string, passphrase?: string): Promise<BackupManifest> {
+  return withPlainArchive(file, passphrase, path.dirname(path.resolve(file)), validatePlainArchive);
+}
+
+async function validatePlainArchive(file: string): Promise<BackupManifest> {
   const cwd = path.dirname(path.resolve(file));
   const base = path.basename(file);
 
@@ -279,17 +328,18 @@ export async function validateBackupArchive(file: string): Promise<BackupManifes
 }
 
 /** Files an uploaded archive among the backups, named after the date and kind recorded inside it. */
-export async function adoptUploadedBackup(input: { dataDir: string; file: string }): Promise<BackupInfo> {
-  const manifest = await validateBackupArchive(input.file);
-  const kind = KINDS.includes(manifest.kind) ? manifest.kind : "manual";
-  const recorded = new Date(manifest.createdAt);
+export async function adoptUploadedBackup(input: { dataDir: string; file: string; passphrase?: string }): Promise<BackupInfo> {
   const dir = backupsDir(input.dataDir);
   fs.mkdirSync(dir, { recursive: true });
+  const encrypted = isEncryptedFile(input.file);
+  const manifest = await withPlainArchive(input.file, input.passphrase, dir, validatePlainArchive);
+  const kind = KINDS.includes(manifest.kind) ? manifest.kind : "manual";
+  const recorded = new Date(manifest.createdAt);
 
   const when = freeStamp(dir, Number.isNaN(recorded.getTime()) ? new Date() : recorded, kind);
-  const name = backupFileName(when, kind);
+  const name = backupFileName(when, kind, encrypted);
   fs.renameSync(input.file, path.join(dir, name));
-  return { name, bytes: fs.statSync(path.join(dir, name)).size, createdAt: when, kind };
+  return { name, bytes: fs.statSync(path.join(dir, name)).size, createdAt: when, kind, encrypted };
 }
 
 const ASIDE_PATTERN = /^(.+)\.before-restore-(\d{8}T\d{6})$/;
@@ -386,10 +436,15 @@ export interface PreparedRestore {
  * The slow, safe half of a restore: validates the archive, extracts it to a scratch folder and stages copies next
  * to the files they will replace. Nothing live is changed until commit().
  */
-export async function prepareRestore(input: { file: string; dataDir: string }): Promise<PreparedRestore> {
+export async function prepareRestore(input: { file: string; dataDir: string; passphrase?: string }): Promise<PreparedRestore> {
+  if (!fs.existsSync(input.file)) throw new Error("Backup file not found.");
+  // Everything is extracted before this returns, so an encrypted backup's readable copy is gone again by then.
+  return withPlainArchive(input.file, input.passphrase, input.dataDir, (plain) => prepareFromPlain({ file: plain, dataDir: input.dataDir }));
+}
+
+async function prepareFromPlain(input: { file: string; dataDir: string }): Promise<PreparedRestore> {
   const { file, dataDir } = input;
-  if (!fs.existsSync(file)) throw new Error("Backup file not found.");
-  await validateBackupArchive(file);
+  await validatePlainArchive(file);
 
   fs.mkdirSync(dataDir, { recursive: true });
   const temp = fs.mkdtempSync(path.join(dataDir, ".restore-"));
@@ -500,7 +555,7 @@ export async function prepareRestore(input: { file: string; dataDir: string }): 
  * (the restore command checks that; the panel closes its own connection first). What gets replaced is kept beside
  * it, so a restore can be undone.
  */
-export async function restoreBackup(input: { file: string; dataDir: string }): Promise<RestoreResult> {
+export async function restoreBackup(input: { file: string; dataDir: string; passphrase?: string }): Promise<RestoreResult> {
   const prepared = await prepareRestore(input);
   try {
     return prepared.commit();

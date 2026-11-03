@@ -8,6 +8,7 @@ export function describeBackup(backup: BackupInfo) {
     name: backup.name,
     bytes: backup.bytes,
     kind: backup.kind,
+    encrypted: backup.encrypted,
     createdAt: backup.createdAt.toISOString(),
     file: path.join(config.dataDir, "backups", backup.name),
   };

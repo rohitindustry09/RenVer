@@ -1,4 +1,5 @@
 import { constantTimeEqual, isSameOrigin, parseBasicAuth } from "./auth";
+import { isIpAllowed, parseAllowList, type AllowRule } from "./ip-allow";
 import { clientKey, createFailureLimiter } from "./rate-limit";
 
 const REALM = 'Basic realm="RenVer"';
@@ -19,6 +20,21 @@ function tooManyAttempts(retryAfterSeconds: number): Response {
   });
 }
 
+/** Matches no address, so a broken RENVER_ALLOWED_IPS shuts the panel to everyone but the machine itself. */
+const NOBODY: AllowRule = { kind: "v6", address: "-" };
+
+/**
+ * With RENVER_ALLOWED_IPS set, only those addresses may reach the panel (the machine itself always can). The address
+ * is the one the reverse proxy reports; the panel only listens on this machine, so that is Caddy.
+ */
+function checkAllowedAddress(request: Request): Response | null {
+  const list = process.env.RENVER_ALLOWED_IPS?.trim();
+  if (!list) return null;
+  const parsed = parseAllowList(list);
+  const rules = parsed.ok ? parsed.rules : [NOBODY];
+  return isIpAllowed(clientKey(request.headers), rules) ? null : new Response("This address is not allowed to use the panel.", { status: 403 });
+}
+
 /**
  * The panel's login and cross-site checks. Returns a response to send back, or null when the request may continue.
  * Fails closed in production: the panel can run code, so it must have a password.
@@ -27,6 +43,9 @@ function tooManyAttempts(retryAfterSeconds: number): Response {
  * middleware because Next.js buffers (and cuts off) request bodies above 10 MB whenever middleware runs.
  */
 export async function guardRequest(request: Request): Promise<Response | null> {
+  const notAllowed = checkAllowedAddress(request);
+  if (notAllowed) return notAllowed;
+
   if (!isSameOrigin(request.method, request.headers)) {
     return new Response("Cross-site request blocked", { status: 403 });
   }
