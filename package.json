@@ -12,7 +12,8 @@
     "preflight": "node src/lib/preflight-cli.ts",
     "restore": "node src/lib/restore-cli.ts",
     "totp": "node src/lib/totp-cli.ts",
-    "setup": "node scripts/setup.mjs"
+    "setup": "node scripts/setup.mjs",
+    "service": "node scripts/service.mjs"
   },
   "dependencies": {
     "adm-zip": "^0.6.1",

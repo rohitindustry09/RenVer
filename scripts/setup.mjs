@@ -14,6 +14,7 @@ import readline from "node:readline/promises";
 import { Writable } from "node:stream";
 import { fileURLToPath } from "node:url";
 import { parseEnv, updateEnvText } from "./env-file.mjs";
+import { buildUnit } from "./service-unit.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 // RENVER_ENV_FILE lets you point the wizard at another file (used by the tests).
@@ -308,28 +309,7 @@ if (!fs.existsSync(path.join(root, ".next", "BUILD_ID")) && (await yes("\nBuild 
 }
 
 if (production && process.platform === "linux" && (await yes("\nWrite a ready-made systemd service file (starts RenVer at boot, restarts it if it stops)", true))) {
-  const unit = [
-    "[Unit]",
-    "Description=RenVer panel",
-    "After=network-online.target docker.service",
-    "Wants=network-online.target docker.service",
-    "# Never give up restarting.",
-    "StartLimitIntervalSec=0",
-    "",
-    "[Service]",
-    "Type=simple",
-    `User=${os.userInfo().username}`,
-    `WorkingDirectory=${root}`,
-    "Environment=NODE_ENV=production",
-    `# Settings are read from ${envPath} by RenVer itself. Do not repeat them here.`,
-    `ExecStart=${process.execPath} scripts/launcher.mjs start`,
-    "Restart=always",
-    "RestartSec=5",
-    "",
-    "[Install]",
-    "WantedBy=multi-user.target",
-    "",
-  ].join("\n");
+  const unit = buildUnit({ user: os.userInfo().username, root, envPath, nodePath: process.execPath });
   const unitPath = path.join(root, "renver.generated.service");
   fs.writeFileSync(unitPath, unit);
   say(green(`Wrote ${unitPath}`));

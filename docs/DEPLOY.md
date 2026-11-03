@@ -35,6 +35,8 @@ npm start                                             # or the systemd service i
 
 **Only one settings file counts: `.env` in the project folder.** RenVer reads it itself, so `$`, `#` and Windows line endings in a password are safe. If the same setting is also in `/etc/renver.env`, the service file or your shell, that outside value wins and RenVer prints a warning at start. That is the usual reason a correct password is "wrong".
 
+**"Unit renver.service not found"** means RenVer was only started by hand, never installed as a service. Run `npm run service` (as your normal user, not sudo): it writes the service file and prints the three `sudo` commands that install and start it.
+
 **Why the panel may not be running after a reboot or a crash:** systemd stops retrying after a few quick failures. The service files RenVer writes now set `StartLimitIntervalSec=0` (never give up). Check `journalctl -u renver -n 50` for the reason, and `npm run setup -- --check`.
 
 ### Trying it first, with no domain (server IP and port)
