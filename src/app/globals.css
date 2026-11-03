@@ -386,7 +386,8 @@ kbd {
 .action-item.divided { margin-top: 5px; position: relative; }
 .action-item.divided::before { content: ""; position: absolute; left: -4px; right: -4px; top: -3px; height: 1px; background: var(--border); }
 .card-link::after { content: ""; position: absolute; inset: 0; border-radius: inherit; }
-.project-card-menu { position: absolute; top: 14px; right: 14px; z-index: 2; }
+.project-card-menu { position: absolute; top: 14px; right: 14px; z-index: 2; display: flex; align-items: center; gap: 6px; }
+.card-restart { gap: 6px; }
 
 /* Dropdown */
 .select-trigger {
@@ -673,3 +674,11 @@ kbd {
 @media (prefers-reduced-motion: reduce) {
   * { animation: none !important; transition: none !important; }
 }
+
+/* Collapsible DNS records */
+.dns-toggle { display: flex; align-items: center; gap: 10px; width: 100%; padding: 14px 24px; background: none; border: 0; color: inherit; cursor: pointer; text-align: left; }
+.dns-toggle:hover { background: rgba(127, 127, 127, 0.08); }
+.dns-toggle .chevron { margin-left: auto; width: 8px; height: 8px; border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor; transform: rotate(-45deg); transition: transform var(--duration-fast); }
+.dns-toggle .chevron[data-open="true"] { transform: rotate(45deg); }
+.dns-done { color: var(--success); font-weight: 500; }
+.badge.ok { color: var(--success); border-color: currentColor; }

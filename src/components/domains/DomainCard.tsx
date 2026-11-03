@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { api } from "@/lib/client-api";
 import { CHALLENGE_LABEL, hostUrl } from "@/lib/domain-names";
 import { ConfirmDelete } from "../ConfirmDelete";
@@ -26,7 +26,38 @@ interface DnsCheck {
   message: string;
 }
 
-function RecordRow({ type, name, value }: { type: string; name: string; value: string }) {
+type RecordState = "done" | "todo" | "check" | "optional" | "here" | "unknown";
+
+const STATE_LABEL: Record<RecordState, string> = {
+  done: "Done",
+  todo: "Not done yet",
+  check: "Points elsewhere",
+  optional: "Optional",
+  here: "Points here (optional)",
+  unknown: "Checking…",
+};
+const STATE_DOT: Record<RecordState, string> = { done: "ok", todo: "fail", check: "warn", optional: "", here: "warn", unknown: "" };
+
+function StatusCell({ state }: { state: RecordState }) {
+  return (
+    <td style={{ whiteSpace: "nowrap", fontFamily: "inherit" }}>
+      <span className={state === "done" ? "dns-done" : undefined} style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+        <span className={`dot ${STATE_DOT[state]}`} aria-hidden="true" />
+        {STATE_LABEL[state]}
+      </span>
+    </td>
+  );
+}
+
+const stateOf = (check: DnsCheck | undefined, optional: boolean): RecordState => {
+  if (!check) return "unknown";
+  // The main domain is optional: when it does point here that is a choice to confirm, not a task that was completed.
+  if (check.status === "ok") return optional ? "here" : "done";
+  if (optional) return "optional";
+  return check.status === "warn" ? "check" : "todo";
+};
+
+function RecordRow({ type, name, value, state }: { type: string; name: string; value: string; state?: RecordState }) {
   return (
     <tr>
       <td>{type}</td>
@@ -36,6 +67,7 @@ function RecordRow({ type, name, value }: { type: string; name: string; value: s
       <td style={{ overflowWrap: "anywhere" }}>
         {value} <CopyButton text={value} label="Copy" />
       </td>
+      {state && <StatusCell state={state} />}
     </tr>
   );
 }
@@ -46,6 +78,8 @@ export function DomainCard({ domain, serverIp, onChanged }: Props) {
   const [dnsResult, setDnsResult] = useState<{ root: DnsCheck; wildcard: DnsCheck } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isConfirmingRemove, setIsConfirmingRemove] = useState(false);
+  const [isOpen, setIsOpen] = useState(true);
+  const hasToggled = useRef(false);
 
   const isPending = domain.status === "pending";
   const inUse = domain.hosts.length > 0;
@@ -71,6 +105,28 @@ export function DomainCard({ domain, serverIp, onChanged }: Props) {
 
   const checkDns = () =>
     run("check", async () => setDnsResult(await api(`/api/domains/${domain.id}/check`, { method: "POST" })));
+
+  // A verified domain is checked as soon as it is shown, so the records can be marked done without a click.
+  useEffect(() => {
+    if (isPending || domain.isLocal) return;
+    let cancelled = false;
+    api<{ root: DnsCheck; wildcard: DnsCheck }>(`/api/domains/${domain.id}/check`, { method: "POST" })
+      .then((result) => {
+        if (!cancelled) setDnsResult(result);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [domain.id, isPending, domain.isLocal]);
+
+  const wildcardState = stateOf(dnsResult?.wildcard, false);
+  const rootState = stateOf(dnsResult?.root, true);
+  // Everything needed is done: fold the records away. Anything not done opens them again. A manual choice wins.
+  useEffect(() => {
+    if (hasToggled.current || !dnsResult) return;
+    setIsOpen(wildcardState !== "done");
+  }, [dnsResult, wildcardState]);
 
   const remove = async () => {
     await run("remove", async () => {
@@ -144,11 +200,30 @@ export function DomainCard({ domain, serverIp, onChanged }: Props) {
 
       {!isPending && !domain.isLocal && (
         <div style={{ borderTop: "1px solid var(--border)" }}>
-          <table className="dns-table" aria-label="DNS records to add">
-            <thead><tr><th>Type</th><th>Name / host</th><th>Value</th></tr></thead>
+          <button
+            type="button"
+            className="dns-toggle"
+            aria-expanded={isOpen}
+            aria-controls={`dns-records-${domain.id}`}
+            onClick={() => {
+              hasToggled.current = true;
+              setIsOpen((open) => !open);
+            }}
+          >
+            <span className="h3" style={{ fontSize: 14 }}>DNS records</span>
+            <span className={`badge${wildcardState === "done" ? " ok" : wildcardState === "unknown" ? "" : " warn"}`}>
+              {wildcardState === "done" ? "All set" : wildcardState === "unknown" ? "Checking…" : "To do"}
+            </span>
+            <span className="chevron" aria-hidden="true" data-open={isOpen} />
+          </button>
+          {isOpen && (
+            <div id={`dns-records-${domain.id}`}>
+          <table className="dns-table" aria-label="DNS records">
+            <thead><tr><th>Type</th><th>Name / host</th><th>Value</th><th>Status</th></tr></thead>
             <tbody>
-              <RecordRow type="A" name="*" value={serverIp} />
-              <RecordRow type="A" name="@" value={serverIp} />
+              <RecordRow type="A" name="*" value={serverIp} state={wildcardState} />
+              <RecordRow type="A" name="@" value={serverIp} state={rootState} />
+              <RecordRow type="TXT" name={CHALLENGE_LABEL} value={domain.txt.value} state="done" />
             </tbody>
           </table>
           <p className="small muted" style={{ padding: "8px 24px 4px" }}>
@@ -157,6 +232,18 @@ export function DomainCard({ domain, serverIp, onChanged }: Props) {
           <p className="small muted" style={{ padding: "0 24px 16px" }}>
             <strong>Optional:</strong> <span className="mono">@</span> is the main domain itself (<span className="mono">{domain.name}</span>). Add it only if an app should open on the main domain. <strong>If {domain.name} already hosts a website, do not add it: it would take that site offline.</strong>
           </p>
+          {rootState === "here" && !domain.hosts.includes(domain.name) && (
+            <p className="notice warn" role="status" style={{ margin: "0 24px 12px" }}>
+              <span>
+                <strong>{domain.name}</strong> itself opens on this server, but no app uses it. If your main website is hosted somewhere else, delete the <span className="mono">@</span> A record at your DNS provider, or visitors may land here instead.
+              </span>
+            </p>
+          )}
+          <p className="small muted" style={{ padding: "0 24px 16px" }}>
+            The TXT record only proved you own the domain. It is done, and you can delete it at your DNS provider.
+          </p>
+            </div>
+          )}
         </div>
       )}
 
@@ -178,24 +265,16 @@ export function DomainCard({ domain, serverIp, onChanged }: Props) {
           {verifyResult.message}
         </p>
       )}
-      {dnsResult && (
+      {dnsResult && dnsResult.wildcard.status !== "ok" && (
         <div className="stack-sm" style={{ padding: "0 24px 16px" }}>
-          {[dnsResult.wildcard, dnsResult.root].map((check) => {
-            // The main domain is optional: pointing elsewhere is normal, so it never shows as an error.
-            const isRoot = check === dnsResult.root;
-            const status = isRoot && check.status !== "ok" ? "info" : check.status;
-            const message = isRoot && check.status !== "ok" ? "Not pointed at this server. That is fine: the main domain is left alone." : check.message;
-            return (
-              <p key={check.name} className={`notice${status === "ok" || status === "info" ? "" : status === "warn" ? " warn" : " error"}`} role="status">
-                <span className={`dot ${status === "ok" ? "ok" : status === "info" ? "" : status === "warn" ? "warn" : "fail"}`} style={{ marginTop: 6 }} />
-                <span>
-                  <span className="mono">{check.name}</span> → {check.addresses.join(", ") || "no answer"}
-                  <br />
-                  <span className="muted">{message}</span>
-                </span>
-              </p>
-            );
-          })}
+          <p className={`notice${dnsResult.wildcard.status === "warn" ? " warn" : " error"}`} role="status">
+            <span className={`dot ${dnsResult.wildcard.status === "warn" ? "warn" : "fail"}`} style={{ marginTop: 6 }} />
+            <span>
+              <span className="mono">{dnsResult.wildcard.name}</span> → {dnsResult.wildcard.addresses.join(", ") || "no answer"}
+              <br />
+              <span className="muted">{dnsResult.wildcard.message}</span>
+            </span>
+          </p>
         </div>
       )}
       {error && <p className="notice error" style={{ margin: "0 24px 16px" }} role="alert">{error}</p>}

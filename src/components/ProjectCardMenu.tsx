@@ -8,6 +8,7 @@ import type { PowerAction } from "@/lib/power-actions";
 import { POWER_COPY, callPower } from "@/lib/power-copy";
 import { ActionMenu, type MenuItem } from "./ActionMenu";
 import { ConfirmDialog } from "./ConfirmDialog";
+import { RestartIcon } from "./shell/icons";
 
 interface Props {
   project: PublicProject;
@@ -72,6 +73,19 @@ export function ProjectCardMenu({ project, onChanged }: Props) {
       )}
       {error && (
         <ConfirmDialog title="That did not work" message={error} confirmLabel="OK" onConfirm={() => setError(null)} onCancel={() => setError(null)} />
+      )}
+      {isRunning && (
+        <button
+          type="button"
+          className="btn sm card-restart"
+          title="Restart"
+          aria-label={`Restart ${project.name}`}
+          disabled={busy !== null}
+          onClick={() => setAsking("restart")}
+        >
+          <RestartIcon />
+          {busy === "restart" ? "Restarting…" : "Restart"}
+        </button>
       )}
       <ActionMenu items={items} ariaLabel={`Actions for ${project.name}`} />
     </>

@@ -87,6 +87,12 @@ describe("preflight evaluate", () => {
     expect(check.message).toContain("80");
   });
 
+  it("treats busy ports as expected when RenVer's own Caddy is running", () => {
+    const check = evaluate({ ...goodLinux, portsInUse: [80, 443] }, { caddyRunning: true }).find((c) => c.id === "ports")!;
+    expect(check.status).toBe("ok");
+    expect(check.message).toContain("RenVer's Caddy");
+  });
+
   it("fails without root on Linux", () => {
     const check = find({ ...goodLinux, isAdmin: false }, "privileges");
     expect(check.status).toBe("fail");

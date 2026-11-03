@@ -133,14 +133,20 @@ function checkTool(id: string, label: string, version: string | null): CheckResu
     : check(id, label, "missing", `${label} is not installed.`, true);
 }
 
-function checkPorts(info: SystemInfo): CheckResult {
+function checkPorts(info: SystemInfo, caddyRunning: boolean): CheckResult {
   const busy = REQUIRED_PORTS.filter((p) => info.portsInUse.includes(p));
-  return busy.length === 0
-    ? check("ports", "Ports 80/443", "ok", "Ports 80 and 443 are free.")
-    : check("ports", "Ports 80/443", "warn", `Port(s) ${busy.join(", ")} already in use by another program.`);
+  if (busy.length === 0) return check("ports", "Ports 80/443", "ok", "Ports 80 and 443 are free.");
+  // RenVer's own Caddy is what holds them once domains are in use, so busy ports are expected then.
+  if (caddyRunning) return check("ports", "Ports 80/443", "ok", `Port(s) ${busy.join(", ")} are used by RenVer's Caddy, which serves your domains. This is expected.`);
+  return check(
+    "ports",
+    "Ports 80/443",
+    "warn",
+    `Port(s) ${busy.join(", ")} are used by another program (often nginx, Apache or a second Caddy), so RenVer's Caddy cannot start. On a server, find it with: sudo ss -ltnp | grep -E ':80|:443'`,
+  );
 }
 
-export function evaluate(info: SystemInfo): CheckResult[] {
+export function evaluate(info: SystemInfo, options: { caddyRunning?: boolean } = {}): CheckResult[] {
   return [
     checkOs(info),
     check("arch", "CPU architecture", info.arch === "x64" || info.arch === "arm64" ? "ok" : "fail", info.arch),
@@ -151,7 +157,7 @@ export function evaluate(info: SystemInfo): CheckResult[] {
     checkTool("caddy", "Caddy", info.tools.caddy),
     checkTool("git", "Git", info.tools.git),
     checkTool("node", "Node.js", info.tools.node),
-    checkPorts(info),
+    checkPorts(info, options.caddyRunning ?? false),
   ];
 }
 

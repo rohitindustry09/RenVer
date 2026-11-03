@@ -112,3 +112,10 @@ export const ZipIcon = (p: IconProps) => (
     <path d="M9.5 2.5V6H13M6 5v1M6 7.5v1M6 10v1" />
   </Icon>
 );
+
+export const RestartIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M13 8a5 5 0 1 1-1.6-3.7" />
+    <path d="M13 2.5v3h-3" />
+  </Icon>
+);

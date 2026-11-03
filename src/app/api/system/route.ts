@@ -1,4 +1,5 @@
 import { ok } from "@/lib/api";
+import { isCaddyRunning } from "@/lib/caddy";
 import { config } from "@/lib/config";
 import { INSTALLABLE_TOOLS, getInstallPlan } from "@/lib/installer";
 import { evaluate, summarize } from "@/lib/preflight";
@@ -14,7 +15,7 @@ const globalCache = globalThis as typeof globalThis & { __renverSystem?: { at: n
 
 async function buildPayload() {
   const info = await collectSystemInfo();
-  const checks = evaluate(info);
+  const checks = evaluate(info, { caddyRunning: await isCaddyRunning() });
   const installHints = Object.fromEntries(
     INSTALLABLE_TOOLS.map((tool) => {
       const plan = getInstallPlan(tool, info.platform, info.isAdmin);

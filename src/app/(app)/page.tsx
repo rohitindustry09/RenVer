@@ -115,7 +115,7 @@ function ProjectCard({ project, onChanged }: { project: ProjectListItem; onChang
       <div className="project-card-menu"><ProjectCardMenu project={project} onChanged={onChanged} /></div>
       <div className="top">
         <div className="project-icon"><FrameworkIcon stack={stackOf(project.config)} fallback={project.name} /></div>
-        <div style={{ minWidth: 0, paddingRight: 28 }}>
+        <div style={{ minWidth: 0, paddingRight: project.status === "running" ? 112 : 28 }}>
           <Link href={`/projects/${project.id}`} className="name card-link">{project.name}</Link>
           <div className="small muted mono ellipsis">{project.primaryHost}</div>
         </div>
