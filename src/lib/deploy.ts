@@ -30,7 +30,7 @@ import { generateDockerfile } from "./dockerfile";
 import { joinLinkedDatabases } from "./isolation";
 import { getPanelHost } from "./panel-host";
 import { appNetworkName } from "./network-names";
-import { volumeName } from "./storage";
+import { volumeName } from "./volume-name";
 import { appendLog } from "./logs";
 import { effectiveLimits } from "./limits";
 import { getLimits } from "./runtime-settings";

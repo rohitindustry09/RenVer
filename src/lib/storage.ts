@@ -1,5 +1,3 @@
-import { createHash } from "node:crypto";
-
 /** Persistent storage: folders inside an app's container that keep their files across deploys. Client-safe rules. */
 
 export type Checked<T> = { ok: true; value: T } | { ok: false; error: string };
@@ -31,10 +29,4 @@ export function validateStoragePaths(input: string | string[]): Checked<string[]
     if (inside) return { ok: false, error: `${a} is already inside ${inside}. List only ${inside}.` };
   }
   return { ok: true, value: paths };
-}
-
-/** The Docker volume that holds one folder of one project. Stable, so a redeploy finds its files again. */
-export function volumeName(projectId: string, containerPath: string): string {
-  const tag = createHash("sha256").update(containerPath).digest("hex").slice(0, 8);
-  return `renver-vol-${projectId}-${tag}`;
 }

@@ -2,7 +2,8 @@ import { audited } from "@/lib/audited";
 import { failFrom, ok } from "@/lib/api";
 import { getProject, updateProjectStorage } from "@/lib/db";
 import { dockerRemoveVolume } from "@/lib/docker";
-import { validateStoragePaths, volumeName } from "@/lib/storage";
+import { validateStoragePaths } from "@/lib/storage";
+import { volumeName } from "@/lib/volume-name";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

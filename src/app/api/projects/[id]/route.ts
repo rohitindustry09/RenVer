@@ -5,7 +5,7 @@ import { serverAddresses } from "@/lib/domains";
 import { deleteProject, getProject, listDeploys, listProjectHosts } from "@/lib/db";
 import { removeRelease, syncProxy } from "@/lib/deploy";
 import { dockerRemoveNetwork, dockerRemoveVolume } from "@/lib/docker";
-import { volumeName } from "@/lib/storage";
+import { volumeName } from "@/lib/volume-name";
 import { appNetworkName } from "@/lib/network-names";
 import { forgetWebhookSecret, githubSourceFor } from "@/lib/webhooks";
 

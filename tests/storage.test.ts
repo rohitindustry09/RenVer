@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { MAX_STORAGE_PATHS, validateStoragePaths, volumeName } from "@/lib/storage";
+import { MAX_STORAGE_PATHS, validateStoragePaths } from "@/lib/storage";
+import { volumeName } from "@/lib/volume-name";
 
 const value = (input: string | string[]) => {
   const result = validateStoragePaths(input);
