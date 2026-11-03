@@ -31,6 +31,7 @@ export function ProjectView() {
   const [activeDeploy, setActiveDeploy] = useState<string | null>(search.get("deploy"));
   const [actionError, setActionError] = useState<string | null>(null);
   const [isRedeploying, setIsRedeploying] = useState(false);
+  const [isPulling, setIsPulling] = useState(false);
 
   if (error && !data) {
     return (
@@ -70,6 +71,21 @@ export function ProjectView() {
     }
   };
 
+  /** Fetches the newest commit from GitHub and deploys it (Redeploy only rebuilds the copy saved last time). */
+  const pullLatest = async () => {
+    setIsPulling(true);
+    setActionError(null);
+    try {
+      const result = await api<{ deployId: string }>(`/api/projects/${project.id}/pull`, { method: "POST" });
+      await reload();
+      openDeploy(result.deployId);
+    } catch (e) {
+      setActionError(e instanceof Error ? e.message : "Could not pull from GitHub.");
+    } finally {
+      setIsPulling(false);
+    }
+  };
+
   return (
     <>
       <Link href="/" className="back-link">← Overview</Link>
@@ -85,6 +101,17 @@ export function ProjectView() {
           </div>
         </div>
         <div className="toolbar">
+          {data.github && (
+            <button
+              type="button"
+              className="btn"
+              title={`Fetch the newest code from ${data.github.repo} on GitHub and deploy it`}
+              disabled={isPulling || isRedeploying || project.status === "deploying"}
+              onClick={() => void pullLatest()}
+            >
+              {isPulling ? "Pulling…" : "Pull latest"}
+            </button>
+          )}
           <button type="button" className="btn" disabled={isRedeploying || project.status === "deploying"} onClick={() => void redeploy()}>
             {isRedeploying ? "Starting…" : "Redeploy"}
           </button>

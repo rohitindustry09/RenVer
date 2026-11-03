@@ -8,6 +8,8 @@ export interface ProjectDetail {
   hosts: string[];
   /** Open it by the server's IP and port, when apps are published that way. */
   directUrl?: string | null;
+  /** The GitHub repository this project was imported from, if any. */
+  github?: { repo: string; branch: string | null } | null;
 }
 
 export type ProjectTab = "overview" | "deployments" | "runtime" | "settings";

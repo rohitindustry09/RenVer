@@ -8,6 +8,7 @@ import { POWER_COPY, callPower, powerDoneText } from "@/lib/power-copy";
 import { ConfirmDialog } from "../ConfirmDialog";
 import { RuntimeLogs } from "./RuntimeLogs";
 import { RuntimeResources } from "./RuntimeResources";
+import { StorageCard } from "./StorageCard";
 
 interface Props {
   project: PublicProject;
@@ -81,6 +82,8 @@ export function RuntimeTab({ project, onChanged }: Props) {
       </section>
 
       <RuntimeResources key={JSON.stringify(project.config.limits ?? {})} project={project} onSaved={onChanged} />
+
+      <StorageCard key={JSON.stringify(project.config.storage ?? [])} project={project} onSaved={onChanged} />
       <RuntimeLogs projectId={project.id} canRead={hasContainer} />
     </div>
   );

@@ -16,6 +16,8 @@ export const AUDIT_LABELS: Record<string, string> = {
   "project.redeploy": "Redeployed a project",
   "project.power": "Changed a project's power state",
   "project.env": "Changed environment variables",
+  "project.storage": "Changed a project's saved folders",
+  "project.pull": "Pulled the latest code from GitHub and deployed",
   "project.limits": "Changed a project's limits",
   "project.host.add": "Added an address to a project",
   "project.host.remove": "Removed an address from a project",

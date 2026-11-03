@@ -15,6 +15,8 @@ export interface ProjectConfig {
   stack?: string;
   /** This project's own memory and CPU limits; anything missing follows the global limits. */
   limits?: { memory?: string; cpus?: string };
+  /** Folders inside the container whose files are kept across deploys (see storage.ts). */
+  storage?: string[];
   kind: "server" | "static";
   installCommand: string | null;
   buildCommand: string | null;
@@ -304,6 +306,14 @@ export function updateProjectLimits(id: string, limits: { memory?: string; cpus?
   const current = getProject(id);
   if (!current) return;
   const next: ProjectConfig = { ...current.config, limits };
+  open().prepare("UPDATE projects SET config = ? WHERE id = ?").run(JSON.stringify(next), id);
+}
+
+/** Saves the folders whose files are kept across deploys. */
+export function updateProjectStorage(id: string, paths: string[]): void {
+  const current = getProject(id);
+  if (!current) return;
+  const next: ProjectConfig = { ...current.config, storage: paths };
   open().prepare("UPDATE projects SET config = ? WHERE id = ?").run(JSON.stringify(next), id);
 }
 

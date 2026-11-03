@@ -30,6 +30,7 @@ import { generateDockerfile } from "./dockerfile";
 import { joinLinkedDatabases } from "./isolation";
 import { getPanelHost } from "./panel-host";
 import { appNetworkName } from "./network-names";
+import { volumeName } from "./storage";
 import { appendLog } from "./logs";
 import { effectiveLimits } from "./limits";
 import { getLimits } from "./runtime-settings";
@@ -153,6 +154,7 @@ async function buildAndStart(
     runtimeEnv: env,
     limits: effectiveLimits(getLimits(), project.config.limits),
     network,
+    volumes: (project.config.storage ?? []).map((path) => ({ name: volumeName(project.id, path), path })),
     onLine: log,
   });
   await joinLinkedDatabases(project.id, container, log);

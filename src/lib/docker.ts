@@ -91,6 +91,8 @@ export async function dockerRun(opts: {
   limits?: { memory: string; cpus: string };
   /** The Docker network to start on: the app's own (see network-names.ts). */
   network?: string;
+  /** Named volumes to mount, so these folders keep their files across deploys. */
+  volumes?: { name: string; path: string }[];
   onLine: LineHandler;
 }): Promise<void> {
   const env = validEnv(opts.runtimeEnv);
@@ -108,6 +110,7 @@ export async function dockerRun(opts: {
     "--security-opt", "no-new-privileges",
     "--cap-drop", "ALL",
     ...KEPT_CAPABILITIES.flatMap((cap) => ["--cap-add", cap]),
+    ...(opts.volumes ?? []).flatMap((v) => ["-v", `${v.name}:${v.path}`]),
     "-p", `${config.publishApps ? "0.0.0.0" : "127.0.0.1"}:${opts.hostPort}:${opts.containerPort}`,
     ...Object.keys(env).flatMap((k) => ["-e", k]),
     opts.tag,
