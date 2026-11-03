@@ -16,7 +16,6 @@ import { findFreePort, isPidAlive, readLock } from "./port-select.mjs";
 
 const MODES = new Set(["dev", "start"]);
 const DEFAULT_PORT = 3000;
-const HOST = "127.0.0.1";
 const LOCK_NAME = ".renver.lock";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -38,6 +37,9 @@ try {
 } catch {
   /* no .env file: fine */
 }
+
+// 127.0.0.1 keeps the panel private (Caddy or an SSH tunnel reaches it). RENVER_BIND_HOST=0.0.0.0 lets the server's own IP and port open it.
+const HOST = process.env.RENVER_BIND_HOST || "127.0.0.1";
 
 const mode = process.argv[2];
 if (!MODES.has(mode)) {

@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import { adminUsername, credentialsMatch, loginKey, safeNext } from "@/lib/login";
 
 describe("safeNext", () => {
@@ -61,5 +61,26 @@ describe("loginKey", () => {
     expect(loginKey("admin", "a")).not.toBe(loginKey("admin", "b"));
     expect(loginKey("admin", "a")).not.toBe(loginKey("root", "a"));
     expect(loginKey("admin", "a")).toBe(loginKey("admin", "a"));
+  });
+});
+
+describe("cookiesAreSecure", () => {
+  const headers = { get: () => null };
+  const restore = { mode: process.env.RENVER_MODE, http: process.env.RENVER_ALLOW_HTTP };
+  afterEach(() => {
+    for (const [key, value] of [["RENVER_MODE", restore.mode], ["RENVER_ALLOW_HTTP", restore.http]] as const) {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
+  });
+
+  it("always sets Secure in production, unless plain http is explicitly allowed", async () => {
+    const { cookiesAreSecure } = await import("@/lib/two-factor");
+    process.env.RENVER_MODE = "production";
+    delete process.env.RENVER_ALLOW_HTTP;
+    expect(cookiesAreSecure(headers, "http://203.0.113.5:3000/")).toBe(true);
+    process.env.RENVER_ALLOW_HTTP = "true";
+    expect(cookiesAreSecure(headers, "http://203.0.113.5:3000/")).toBe(false);
+    expect(cookiesAreSecure({ get: (n: string) => (n === "x-forwarded-proto" ? "https" : null) }, "http://203.0.113.5:3000/")).toBe(true);
   });
 });

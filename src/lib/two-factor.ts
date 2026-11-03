@@ -31,6 +31,15 @@ export function readCookie(header: string | null, name: string): string | null {
 }
 
 /** Whether the connection to the browser is HTTPS (RenVer itself speaks plain http behind Caddy). */
+/**
+ * Whether cookies get the Secure flag: on HTTPS, and always in production, unless RENVER_ALLOW_HTTP=true says the panel is
+ * (for now) opened over plain http://<ip>:<port>, where a Secure cookie would never be stored and sign-in would loop.
+ */
+export function cookiesAreSecure(headers: { get(name: string): string | null }, url: string): boolean {
+  const forced = process.env.RENVER_MODE === "production" && process.env.RENVER_ALLOW_HTTP !== "true";
+  return forced || isSecureRequest(headers, url);
+}
+
 export function isSecureRequest(headers: { get(name: string): string | null }, url: string): boolean {
   return headers.get("x-forwarded-proto") === "https" || url.startsWith("https:");
 }

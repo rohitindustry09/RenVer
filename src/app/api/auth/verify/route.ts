@@ -10,7 +10,7 @@ import { verifyTotp } from "@/lib/totp";
 import {
   TWO_FACTOR_LIFETIME_MS,
   configuredTotpSecret,
-  isSecureRequest,
+  cookiesAreSecure,
   sessionCookie,
   twoFactorKey,
 } from "@/lib/two-factor";
@@ -68,6 +68,6 @@ export async function POST(request: Request) {
   recordAudit(actorOf(request), recovery ? "auth.2fa.recovery" : "auth.2fa.ok");
   const token = await createSessionToken(twoFactorKey(secret, adminUsername(), adminPassword() ?? "", getSessionEpoch()), Date.now(), TWO_FACTOR_LIFETIME_MS);
   const response = NextResponse.json({ success: true, data: { ok: true } });
-  response.headers.append("Set-Cookie", sessionCookie(token, isSecureRequest(request.headers, request.url) || process.env.RENVER_MODE === "production"));
+  response.headers.append("Set-Cookie", sessionCookie(token, cookiesAreSecure(request.headers, request.url)));
   return response;
 }

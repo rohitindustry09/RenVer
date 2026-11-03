@@ -6,6 +6,8 @@ export interface ProjectDetail {
   deploys: Deploy[];
   /** Every hostname that reaches the project, including the primary one. */
   hosts: string[];
+  /** Open it by the server's IP and port, when apps are published that way. */
+  directUrl?: string | null;
 }
 
 export type ProjectTab = "overview" | "deployments" | "runtime" | "settings";

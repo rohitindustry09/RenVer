@@ -66,6 +66,11 @@ export function OverviewTab({ detail, url, host, onOpenDeploy }: Props) {
                 {stackLabel(stackOf(project.config))} · {project.config.kind === "static" ? "static site" : "server app"}
               </span>
             </Kv>
+            {detail.directUrl && isLive && (
+              <Kv label="Server address">
+                <a className="mono" href={detail.directUrl} target="_blank" rel="noopener noreferrer">{detail.directUrl.replace("http://", "")}</a>
+              </Kv>
+            )}
             {project.hostPort && <Kv label="Local port"><span className="mono">127.0.0.1:{project.hostPort}</span></Kv>}
           </div>
         </div>

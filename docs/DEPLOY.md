@@ -37,6 +37,16 @@ npm start                                             # or the systemd service i
 
 **Why the panel may not be running after a reboot or a crash:** systemd stops retrying after a few quick failures. The service files RenVer writes now set `StartLimitIntervalSec=0` (never give up). Check `journalctl -u renver -n 50` for the reason, and `npm run setup -- --check`.
 
+### Trying it first, with no domain (server IP and port)
+
+`npm run setup` → "On a server" → "By the server's IP address and port". It sets `RENVER_BIND_HOST=0.0.0.0`, `RENVER_ALLOW_HTTP=true` and `RENVER_PUBLISH_APPS=true`:
+
+- the panel opens at `http://<server ip>:3000`;
+- each app opens at `http://<server ip>:<its port>` (the project page shows it; ports start at 4001);
+- open those ports in the server firewall (`sudo ufw allow 3000/tcp` and the app ports). Docker may publish app ports even if ufw blocks them.
+
+This is plain http: your password crosses the internet unencrypted and anyone can reach those ports. Use it only to try things, with two-factor on and `RENVER_ALLOWED_IPS` set to your own address. When it all works, add a domain in the panel (Domains page: it shows the exact A and TXT records to create at your DNS provider and checks them), set the panel address, remove the three lines and redeploy apps so their ports go back to private. You can add as many domains as you like, any time.
+
 ## 2. On a server (VPS)
 
 You need a Linux server (Ubuntu 22.04+ or Debian 12+, 2 GB RAM or more) and a domain.

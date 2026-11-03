@@ -165,15 +165,34 @@ const where = await choose("Where will RenVer run?", ["On this computer (just fo
 const production = where === 2;
 updates.RENVER_MODE = production ? "production" : "local";
 
+let byIp = false;
 if (production) {
+  const access = await choose("How will you open the panel?", [
+    "By the server's IP address and port, no domain yet (plain http, good for trying it first)",
+    "By a domain name with HTTPS (needs DNS records and ports 80/443 open)",
+    "Private: only through an SSH tunnel (safest)",
+  ], current.RENVER_PUBLISH_APPS === "true" ? 1 : current.RENVER_PANEL_HOST ? 2 : 1);
+  byIp = access === 1;
   const known = current.RENVER_BASE_DOMAIN && current.RENVER_BASE_DOMAIN !== "localhost" ? current.RENVER_BASE_DOMAIN : "";
-  const domain = (await ask("\nYour domain (for example example.com)", known)).toLowerCase();
-  if (!/^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$/.test(domain)) {
+  const domain = (await ask(access === 2 ? "\nYour domain (for example example.com)" : "\nYour domain, if you have one (Enter to skip; you can add domains later in the panel)", known)).toLowerCase();
+  if (domain && !/^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$/.test(domain)) {
     console.error(red("That does not look like a domain name (example: example.com). Run npm run setup again."));
     process.exit(1);
   }
-  updates.RENVER_BASE_DOMAIN = domain;
-  updates.RENVER_PANEL_HOST = await ask("Address of the panel itself", current.RENVER_PANEL_HOST || `panel.${domain}`);
+  if (access === 2 && !domain) {
+    console.error(red("A domain is needed for this choice. Run npm run setup again."));
+    process.exit(1);
+  }
+  updates.RENVER_BASE_DOMAIN = domain || "localhost";
+  updates.RENVER_PANEL_HOST = access === 2 ? await ask("Address of the panel itself", current.RENVER_PANEL_HOST || `panel.${domain}`) : "";
+  // Plain-IP mode: the panel and each app also listen on the server's IP. Everything else stays private.
+  updates.RENVER_BIND_HOST = byIp ? "0.0.0.0" : "";
+  updates.RENVER_ALLOW_HTTP = byIp ? "true" : "";
+  updates.RENVER_PUBLISH_APPS = byIp ? "true" : "";
+  if (byIp) {
+    say(yellow("\nThis sends your password over plain http, and anyone on the internet can reach the panel and app ports."));
+    say(yellow("Do it only to try things first. Set two-factor and allowed addresses below, and switch to a domain with HTTPS afterwards."));
+  }
 } else {
   updates.RENVER_BASE_DOMAIN = current.RENVER_BASE_DOMAIN || "localhost";
 }
@@ -246,7 +265,7 @@ if (production) {
 
 // --- review and write -------------------------------------------------------------------------------------------
 say(bold("\nSummary"));
-say(`  Runs:              ${production ? `on a server (${updates.RENVER_BASE_DOMAIN}, panel at ${updates.RENVER_PANEL_HOST})` : "on this computer"}`);
+say(`  Runs:              ${production ? `on a server (${updates.RENVER_BASE_DOMAIN}, panel ${updates.RENVER_PANEL_HOST ? `at ${updates.RENVER_PANEL_HOST}` : byIp ? "by server IP and port, plain http" : "private, via SSH tunnel"})` : "on this computer"}`);
 say(`  Username:          ${updates.RENVER_ADMIN_USER}`);
 say(`  Password:          ${passwordMode === 3 ? "kept" : passwordMode === 1 ? "generated" : "typed by you"}`);
 say(`  Two-factor:        ${totpSecret ? green("on") : yellow("off")}`);
@@ -326,4 +345,9 @@ say(
     production ? " (or the service above)" : ""
   }, then open the address it prints and sign in as ${bold(updates.RENVER_ADMIN_USER)}.`,
 );
+if (byIp) {
+  const port = current.RENVER_PORT || 3000;
+  say(`Open the panel at ${bold(`http://<your server IP>:${port}`)}. Each app is at ${bold("http://<your server IP>:<its port>")} (shown on the project page).`);
+  say(dim("If it does not open, allow those ports in the server firewall, e.g.: sudo ufw allow 3000/tcp   (and the app ports, 4001 and up)."));
+}
 rl.close();

@@ -12,7 +12,7 @@ import {
 } from "@/lib/login";
 import { clientKey, createFailureLimiter } from "@/lib/rate-limit";
 import { createSessionToken } from "@/lib/session-token";
-import { buildCookie, configuredTotpSecret, isSecureRequest } from "@/lib/two-factor";
+import { buildCookie, configuredTotpSecret, cookiesAreSecure } from "@/lib/two-factor";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -59,7 +59,7 @@ export async function POST(request: Request) {
   limiter.reset(client);
   recordAudit(actorOf(request), "auth.login.ok");
   const token = await createSessionToken(loginKey(user, password, getSessionEpoch()), Date.now(), LOGIN_LIFETIME_MS, LOGIN_PURPOSE);
-  const secure = isSecureRequest(request.headers, request.url) || process.env.RENVER_MODE === "production";
+  const secure = cookiesAreSecure(request.headers, request.url);
   const response = NextResponse.json({ success: true, data: { twoFactor: configuredTotpSecret() !== undefined } });
   response.headers.append("Set-Cookie", buildCookie(LOGIN_COOKIE, token, secure, Math.floor(LOGIN_LIFETIME_MS / 1000)));
   return response;

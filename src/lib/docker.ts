@@ -108,7 +108,7 @@ export async function dockerRun(opts: {
     "--security-opt", "no-new-privileges",
     "--cap-drop", "ALL",
     ...KEPT_CAPABILITIES.flatMap((cap) => ["--cap-add", cap]),
-    "-p", `127.0.0.1:${opts.hostPort}:${opts.containerPort}`,
+    "-p", `${config.publishApps ? "0.0.0.0" : "127.0.0.1"}:${opts.hostPort}:${opts.containerPort}`,
     ...Object.keys(env).flatMap((k) => ["-e", k]),
     opts.tag,
   ];

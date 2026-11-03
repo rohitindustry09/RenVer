@@ -1,5 +1,7 @@
 import { audited } from "@/lib/audited";
 import { fail, ok, publicProject } from "@/lib/api";
+import { config } from "@/lib/config";
+import { serverAddresses } from "@/lib/domains";
 import { deleteProject, getProject, listDeploys, listProjectHosts } from "@/lib/db";
 import { removeRelease, syncProxy } from "@/lib/deploy";
 import { dockerRemoveNetwork } from "@/lib/docker";
@@ -11,6 +13,12 @@ export const dynamic = "force-dynamic";
 
 type Context = { params: Promise<{ id: string }> };
 
+/** http://<server ip>:<port> when apps are published on the server's IP (RENVER_PUBLISH_APPS), else null. */
+function directUrlFor(hostPort: number | null): string | null {
+  const ip = serverAddresses()[0];
+  return config.publishApps && hostPort && ip ? `http://${ip}:${hostPort}` : null;
+}
+
 export async function GET(_request: Request, { params }: Context) {
   const { id } = await params;
   const project = getProject(id);
@@ -19,6 +27,7 @@ export async function GET(_request: Request, { params }: Context) {
     project: publicProject(project),
     deploys: listDeploys(id),
     hosts: listProjectHosts(id).map((h) => h.host),
+    directUrl: directUrlFor(project.hostPort),
   });
 }
 

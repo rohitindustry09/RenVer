@@ -13,7 +13,7 @@ const securityHeaders = [
   { key: "Referrer-Policy", value: "same-origin" },
   { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=(), payment=()" },
   { key: "Content-Security-Policy", value: "frame-ancestors 'none'; base-uri 'self'; object-src 'none'; form-action 'self'" },
-  ...(isProduction ? [{ key: "Strict-Transport-Security", value: "max-age=31536000" }] : []),
+  ...(isProduction && process.env.RENVER_ALLOW_HTTP !== "true" ? [{ key: "Strict-Transport-Security", value: "max-age=31536000" }] : []),
 ];
 
 const config: NextConfig = {

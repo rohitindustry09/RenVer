@@ -21,6 +21,12 @@ export const config = {
   panelHost: process.env.RENVER_PANEL_HOST ?? (mode === "local" ? "panel.localhost" : null),
   hostPortStart: Number(process.env.RENVER_HOST_PORT_START ?? DEFAULT_HOST_PORT_START),
   panelPort: PANEL_PORT,
+  /**
+   * Apps listen on 127.0.0.1 only (Caddy forwards to them). With RENVER_PUBLISH_APPS=true each app is also reachable at
+   * http://<server ip>:<its port>, for trying things before a domain is set up. Anyone can open that port, so use it
+   * together with a firewall or RENVER_ALLOWED_IPS-style limits on the server, and turn it off once domains work.
+   */
+  publishApps: process.env.RENVER_PUBLISH_APPS === "true",
   healthTimeoutMs: 90_000,
   memoryLimit: process.env.RENVER_APP_MEMORY ?? "512m",
   cpuLimit: process.env.RENVER_APP_CPUS ?? "1",
