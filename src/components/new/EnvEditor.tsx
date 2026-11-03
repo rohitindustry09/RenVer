@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, type ClipboardEvent } from "react";
-import { parseEnvPaste, type EnvRow } from "@/lib/env-text";
+import { useRef, useState, type ChangeEvent, type ClipboardEvent } from "react";
+import { mergeEnvRows, parseEnvPaste, type EnvRow } from "@/lib/env-text";
 
 interface Props {
   rows: EnvRow[];
@@ -9,9 +9,12 @@ interface Props {
 }
 
 const EMPTY_ROW: EnvRow = { key: "", value: "" };
+const MAX_FILE_BYTES = 256 * 1024;
 
 export function EnvEditor({ rows, onChange }: Props) {
   const [isRevealed, setIsRevealed] = useState(false);
+  const [note, setNote] = useState<{ ok: boolean; text: string } | null>(null);
+  const fileInput = useRef<HTMLInputElement>(null);
 
   const update = (index: number, patch: Partial<EnvRow>) =>
     onChange(rows.map((row, i) => (i === index ? { ...row, ...patch } : row)));
@@ -31,6 +34,28 @@ export function EnvEditor({ rows, onChange }: Props) {
     const before = rows.slice(0, index);
     const after = rows.slice(index + 1).filter((r) => r.key || r.value);
     onChange([...before, ...parsed, ...after]);
+  };
+
+  /** Reads a .env file chosen from the computer. Variables with the same name are replaced; the rest are kept. */
+  const importFile = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+    if (file.size > MAX_FILE_BYTES) {
+      setNote({ ok: false, text: "That file is too large to be a .env file." });
+      return;
+    }
+    try {
+      const parsed = parseEnvPaste(await file.text());
+      if (parsed.length === 0) {
+        setNote({ ok: false, text: `No variables found in ${file.name}. Each line should look like KEY=value.` });
+        return;
+      }
+      onChange(mergeEnvRows(rows, parsed));
+      setNote({ ok: true, text: `Imported ${parsed.length} variable${parsed.length === 1 ? "" : "s"} from ${file.name}.` });
+    } catch {
+      setNote({ ok: false, text: "Could not read that file." });
+    }
   };
 
   return (
@@ -63,15 +88,22 @@ export function EnvEditor({ rows, onChange }: Props) {
         </div>
       ))}
       <div className="toolbar" style={{ justifyContent: "space-between" }}>
-        <button type="button" className="btn sm" onClick={() => onChange([...rows, EMPTY_ROW])}>
-          + Add another
-        </button>
+        <span className="toolbar">
+          <button type="button" className="btn sm" onClick={() => onChange([...rows, EMPTY_ROW])}>
+            + Add another
+          </button>
+          <button type="button" className="btn sm" onClick={() => fileInput.current?.click()}>
+            Import .env file
+          </button>
+          <input ref={fileInput} type="file" accept=".env,.txt,text/plain" hidden onChange={(e) => void importFile(e)} aria-label="Choose a .env file" />
+        </span>
         <label className="small muted" style={{ display: "flex", gap: 8, alignItems: "center", cursor: "pointer" }}>
           <input type="checkbox" checked={isRevealed} onChange={(e) => setIsRevealed(e.target.checked)} />
           Show values
         </label>
       </div>
-      <p className="small muted">Paste a .env file into any name field to fill several rows. Values are stored encrypted.</p>
+      {note && <p className={`notice${note.ok ? "" : " error"}`} role="status">{note.text}</p>}
+      <p className="small muted">Import a .env file, or paste one into any name field, to fill several rows. Values are stored encrypted and never leave your browser until you deploy.</p>
     </div>
   );
 }
