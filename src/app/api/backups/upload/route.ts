@@ -1,3 +1,4 @@
+import { audited } from "@/lib/audited";
 import { randomBytes } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
@@ -10,6 +11,7 @@ import { backupPassphrase } from "@/lib/backup-passphrase";
 import { describeBackup } from "@/lib/backup-view";
 import { config } from "@/lib/config";
 import { guardRequest } from "@/lib/guard";
+import { getSessionEpoch } from "@/lib/session-epoch";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -40,8 +42,8 @@ function limitBytes(max: number): Transform {
  * It is excluded from the middleware (Next.js would cut the body off at 10 MB there), so it checks the login itself.
  * Nothing is trusted until the archive has been validated.
  */
-export async function POST(request: Request) {
-  const blocked = await guardRequest(request);
+async function handlePOST(request: Request) {
+  const blocked = await guardRequest(request, getSessionEpoch());
   if (blocked) return blocked;
 
   if (!request.body) return fail("No file was received.");
@@ -63,3 +65,5 @@ export async function POST(request: Request) {
     fs.rmSync(partial, { force: true });
   }
 }
+
+export const POST = audited("backup.upload", handlePOST);

@@ -1,3 +1,4 @@
+import { audited } from "@/lib/audited";
 import { fail, ok } from "@/lib/api";
 import { installLogId, installStatus, startInstall } from "@/lib/install-jobs";
 import { isInstallableTool } from "@/lib/installer";
@@ -12,7 +13,7 @@ function isAdmin(): boolean {
   return typeof process.getuid === "function" ? process.getuid() === ROOT_UID : true;
 }
 
-export async function POST(request: Request) {
+async function handlePOST(request: Request) {
   try {
     const body = (await request.json()) as { tool?: unknown };
     const tool = typeof body.tool === "string" ? body.tool : "";
@@ -31,3 +32,5 @@ export async function GET(request: Request) {
   const offset = Math.max(0, Number(params.get("offset") ?? 0) || 0);
   return ok({ status: installStatus(tool), log: readLog(installLogId(tool), offset) });
 }
+
+export const POST = audited("system.install", handlePOST);

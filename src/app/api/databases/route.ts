@@ -1,3 +1,4 @@
+import { audited } from "@/lib/audited";
 import { fail, ok, publicDatabase, type DatabaseListItem } from "@/lib/api";
 import { DatabaseError, createDatabase, linkedProjectsFor, listDatabasesWithLiveStatus } from "@/lib/databases";
 
@@ -10,7 +11,7 @@ export async function GET() {
   return ok(items);
 }
 
-export async function POST(request: Request) {
+async function handlePOST(request: Request) {
   try {
     const body = (await request.json()) as { name?: unknown; engine?: unknown; version?: unknown };
     const record = createDatabase({
@@ -23,3 +24,5 @@ export async function POST(request: Request) {
     return fail(error, error instanceof DatabaseError ? error.status : 400);
   }
 }
+
+export const POST = audited("database.create", handlePOST, { detail: (b) => [b.name, b.engine, b.version].filter((v) => typeof v === "string").join(" ") });

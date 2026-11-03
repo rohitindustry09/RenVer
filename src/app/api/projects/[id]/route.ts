@@ -1,6 +1,9 @@
+import { audited } from "@/lib/audited";
 import { fail, ok, publicProject } from "@/lib/api";
 import { deleteProject, getProject, listDeploys, listProjectHosts } from "@/lib/db";
 import { removeRelease, syncProxy } from "@/lib/deploy";
+import { dockerRemoveNetwork } from "@/lib/docker";
+import { appNetworkName } from "@/lib/network-names";
 import { forgetWebhookSecret } from "@/lib/webhooks";
 
 export const runtime = "nodejs";
@@ -19,13 +22,14 @@ export async function GET(_request: Request, { params }: Context) {
   });
 }
 
-export async function DELETE(_request: Request, { params }: Context) {
+async function handleDELETE(_request: Request, { params }: Context) {
   try {
     const { id } = await params;
     const project = getProject(id);
     if (!project) return fail("Project not found.", 404);
     if (project.status === "deploying") return fail("A deploy is in progress. Try again when it finishes.", 409);
     if (project.container) await removeRelease(project.container);
+    await dockerRemoveNetwork(appNetworkName(id)).catch(() => undefined);
     deleteProject(id);
     forgetWebhookSecret(id);
     await syncProxy(() => undefined);
@@ -34,3 +38,5 @@ export async function DELETE(_request: Request, { params }: Context) {
     return fail(error, 500);
   }
 }
+
+export const DELETE = audited("project.delete", handleDELETE);

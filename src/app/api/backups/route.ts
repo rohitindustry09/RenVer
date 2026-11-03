@@ -1,3 +1,4 @@
+import { audited } from "@/lib/audited";
 import { fail, ok } from "@/lib/api";
 import { listBackups, pruneBackups } from "@/lib/backup";
 import { createBackupWithDatabases } from "@/lib/backup-all";
@@ -15,7 +16,7 @@ export async function GET() {
  * Every backup holds the database, the key and the data inside the running databases. A full one also holds the
  * project sources, which are what let apps be rebuilt on another machine.
  */
-export async function POST(request: Request) {
+async function handlePOST(request: Request) {
   try {
     const body = (await request.json().catch(() => ({}))) as { full?: unknown };
     const { databases, skipped, ...info } = await createBackupWithDatabases(body.full === true ? "full" : "manual");
@@ -25,3 +26,5 @@ export async function POST(request: Request) {
     return fail(error, 500);
   }
 }
+
+export const POST = audited("backup.create", handlePOST, { detail: (b) => (b.full === true ? "full" : "manual") });

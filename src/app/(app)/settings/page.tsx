@@ -2,17 +2,24 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { ActivityCard } from "@/components/ActivityCard";
 import { BackupsCard } from "@/components/BackupsCard";
 import { NotificationsCard } from "@/components/NotificationsCard";
 import { ResourcesCard, type ResourceInfo } from "@/components/ResourcesCard";
 import { SkeletonLines } from "@/components/Skeleton";
 import { useFetch } from "@/hooks/useFetch";
+import { api } from "@/lib/client-api";
 import { applyTheme, readTheme, type ThemeChoice } from "@/lib/theme";
 
 interface SettingsData extends ResourceInfo {
   mode: "local" | "production";
   dataDir: string;
   passwordProtected: boolean;
+  adminUser: string;
+  secretWarnings: { id: string; message: string }[];
+  twoFactor: boolean;
+  backupsEncrypted: boolean;
+  allowedAddressesSet: boolean;
   node: string;
 }
 
@@ -39,6 +46,18 @@ export default function SettingsPage() {
   const [theme, setTheme] = useState<ThemeChoice>("system");
 
   useEffect(() => setTheme(readTheme()), []);
+
+  /** Forgets the code step in this browser: the next page asks for a code again. */
+  const lockNow = async () => {
+    await api("/api/auth/lock", { method: "POST" });
+    window.location.assign("/");
+  };
+
+  /** Invalidates every sign-in on every browser, this one included. */
+  const signOutEverywhere = async () => {
+    await api("/api/auth/signout-all", { method: "POST" });
+    window.location.assign("/login");
+  };
 
   const chooseTheme = (choice: ThemeChoice) => {
     setTheme(choice);
@@ -97,19 +116,60 @@ export default function SettingsPage() {
 
         <section className="card" aria-labelledby="security-heading">
           <div className="card-head"><h2 className="h3" id="security-heading">Security</h2></div>
+          {data && data.secretWarnings.length > 0 && (
+            <div className="stack-sm" style={{ padding: "16px 24px 0" }}>
+              {data.secretWarnings.map((w) => <p className="notice warn" role="status" key={w.id}>{w.message}</p>)}
+            </div>
+          )}
           <ul className="rows">
             <Row
               title="Panel password"
               description={
                 data?.passwordProtected
-                  ? "The panel asks for a password."
+                  ? `Sign in with the username "${data.adminUser}" and your password. Use Sign out in the sidebar when you are done.`
                   : "Anyone who can reach this panel can deploy code. Set RENVER_ADMIN_PASSWORD before exposing it."
               }
             >
               {data && <span className={`badge${data.passwordProtected ? "" : " warn"}`}>{data.passwordProtected ? "Enabled" : "Not set"}</span>}
             </Row>
+            {data?.passwordProtected && (
+              <Row title="Sign out everywhere" description="Ends every sign-in on every browser and device, this one too. Use it if you think someone else has access.">
+                <button type="button" className="btn sm" onClick={() => void signOutEverywhere()}>Sign out everywhere</button>
+              </Row>
+            )}
+            <Row
+              title="Two-factor login"
+              description={
+                data?.twoFactor
+                  ? "After the password, the panel asks for a 6-digit code from your authenticator app."
+                  : "Off. Run `npm run totp` on the server, add the line it prints to the settings and restart, to ask for a code after the password."
+              }
+            >
+              {data && (
+                <span className="toolbar">
+                  <span className={`badge${data.twoFactor ? "" : " warn"}`}>{data.twoFactor ? "Enabled" : "Off"}</span>
+                  {data.twoFactor && (
+                    <button type="button" className="btn sm" onClick={() => void lockNow()}>Lock now</button>
+                  )}
+                </span>
+              )}
+            </Row>
+            <Row
+              title="Encrypted backups"
+              description={data?.backupsEncrypted ? "New backups are encrypted with your passphrase." : "New backups are not encrypted. Set RENVER_BACKUP_PASSPHRASE."}
+            >
+              {data && <span className={`badge${data.backupsEncrypted ? "" : " warn"}`}>{data.backupsEncrypted ? "On" : "Off"}</span>}
+            </Row>
+            <Row
+              title="Allowed addresses"
+              description={data?.allowedAddressesSet ? "Only listed addresses can reach the panel." : "Any address can reach the panel's login. Set RENVER_ALLOWED_IPS to limit it."}
+            >
+              {data && <span className={`badge${data.allowedAddressesSet ? "" : " warn"}`}>{data.allowedAddressesSet ? "Limited" : "Open"}</span>}
+            </Row>
           </ul>
         </section>
+
+        <ActivityCard />
 
         <section className="card" aria-labelledby="setup-heading">
           <div className="card-head"><h2 className="h3" id="setup-heading">Setup</h2></div>

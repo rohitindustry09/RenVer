@@ -49,6 +49,12 @@ export const SettingsIcon = (p: IconProps) => (
   </Icon>
 );
 
+export const SignOutIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M6 2.5H3.5v11H6M10 5l3 3-3 3M13 8H6.5" />
+  </Icon>
+);
+
 export const SearchIcon = (p: IconProps) => (
   <Icon {...p}>
     <circle cx="7" cy="7" r="4.5" />

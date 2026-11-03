@@ -1,3 +1,4 @@
+import { audited } from "@/lib/audited";
 import os from "node:os";
 import { failFrom, ok } from "@/lib/api";
 import { getProject, updateProjectLimits } from "@/lib/db";
@@ -9,7 +10,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 /** Sets this project's own memory and CPU. A blank field goes back to the global limit. Applies to the running app too. */
-export async function PUT(request: Request, { params }: { params: Promise<{ id: string }> }) {
+async function handlePUT(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const project = getProject((await params).id);
     if (!project) return failFrom(Object.assign(new Error("Project not found."), { status: 404 }));
@@ -29,3 +30,5 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     return failFrom(error, 500);
   }
 }
+
+export const PUT = audited("project.limits", handlePUT, { detail: (b) => `memory ${String(b.memory ?? "") || "default"}, cpus ${String(b.cpus ?? "") || "default"}` });

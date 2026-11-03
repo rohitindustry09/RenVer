@@ -1,3 +1,4 @@
+import { audited } from "@/lib/audited";
 import { fail, ok } from "@/lib/api";
 import { createDeploy, getProject } from "@/lib/db";
 import { runDeploy } from "@/lib/deploy";
@@ -7,7 +8,7 @@ import { sourceDirFor } from "@/lib/uploads";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
+async function handlePOST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
     const project = getProject(id);
@@ -22,3 +23,5 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     return fail(error);
   }
 }
+
+export const POST = audited("project.deploy", handlePOST);

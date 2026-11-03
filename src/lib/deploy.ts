@@ -27,6 +27,8 @@ import {
   waitHealthy,
 } from "./docker";
 import { generateDockerfile } from "./dockerfile";
+import { joinLinkedDatabases } from "./isolation";
+import { appNetworkName } from "./network-names";
 import { appendLog } from "./logs";
 import { effectiveLimits } from "./limits";
 import { getLimits } from "./runtime-settings";
@@ -138,7 +140,8 @@ async function buildAndStart(
 
   updateDeploy(deployId, "starting");
   const hostPort = await allocateHostPort();
-  await ensureNetwork();
+  const network = appNetworkName(project.id);
+  await ensureNetwork(network);
   log(`Starting container on port ${hostPort}`);
   await dockerRun({
     name: container,
@@ -148,8 +151,10 @@ async function buildAndStart(
     projectId: project.id,
     runtimeEnv: env,
     limits: effectiveLimits(getLimits(), project.config.limits),
+    network,
     onLine: log,
   });
+  await joinLinkedDatabases(project.id, container, log);
   onStarted(container);
 
   log("Waiting for the app to respond...");

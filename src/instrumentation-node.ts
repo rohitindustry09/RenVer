@@ -12,6 +12,14 @@ export async function startBackgroundWork(): Promise<void> {
   const removed = pruneUploads();
   if (removed > 0) process.stdout.write(`[renver] removed ${removed} old saved source(s)\n`);
 
+  // Containers made by an earlier version share one Docker network. Give each app and database its own.
+  void import("./lib/isolation").then(async ({ isolateNetworks }) => {
+    const result = await isolateNetworks((line) => process.stdout.write(`[renver] ${line}
+`)).catch(() => null);
+    if (result && result.moved > 0) process.stdout.write(`[renver] isolated ${result.moved} container(s) on their own networks
+`);
+  });
+
   const { startWatchdog } = await import("./lib/watchdog");
   // The watchdog's first pass re-syncs routes and restarts anything that died while the panel was down.
   startWatchdog();

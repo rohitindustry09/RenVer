@@ -105,3 +105,11 @@ describe("computeAlerts", () => {
     expect(new Set(alerts.map((a) => a.id)).size).toBe(alerts.length);
   });
 });
+
+describe("computeAlerts secret warnings", () => {
+  it("turns each secret warning into a warning that links to settings, without any secret", () => {
+    const alerts = computeAlerts({ ...healthy, secretWarnings: [{ id: "password-short", message: "The panel password is short (6 characters). Use 12 or more." }] });
+    expect(alerts).toHaveLength(1);
+    expect(alerts[0]).toMatchObject({ id: "secret-password-short", severity: "warning", href: "/settings" });
+  });
+});

@@ -222,6 +222,7 @@ kbd {
   background: var(--bg-active); color: var(--text-2); font: 500 12px/20px var(--font-sans); text-align: center;
 }
 .nav-count.warn { background: transparent; color: var(--warning); border: 1px solid var(--warning); line-height: 18px; }
+.sign-out { width: 100%; border: 0; background: none; font: inherit; text-align: left; cursor: pointer; }
 .setup-alert { border: 1px solid var(--warning); color: var(--warning); }
 .setup-alert:hover { color: var(--warning); }
 

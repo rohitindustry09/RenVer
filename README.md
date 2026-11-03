@@ -31,12 +31,14 @@ Running it on a server, starting it at boot, HTTPS and what to check before you 
 |---|---|---|
 | `RENVER_PORT` | `3000` | Port the panel starts on; the next free one is used if it is taken |
 | `RENVER_MODE` | `local` | `production` makes the panel refuse to run without a password and turns on HTTPS-only headers |
-| `RENVER_ADMIN_PASSWORD` | (none) | Password for the panel (any username). Required in production |
+| `RENVER_ADMIN_PASSWORD` | (none) | Password for the panel's sign-in page. Required in production |
 | `RENVER_BASE_DOMAIN` | `localhost` | The first domain, seeded on first start. More are added in the panel |
 | `RENVER_PANEL_HOST` | `panel.localhost` locally | Address the panel itself is served on through Caddy |
 | `RENVER_DATA_DIR` | `./data` | Where the database, encryption key, sources, logs and backups live |
 | `RENVER_APP_MEMORY`, `RENVER_APP_CPUS` | `512m`, `1` | Starting limits per app (editable in Settings, and per project) |
 | `RENVER_HOST_PORT_START` | `4001` | First local port handed to an app |
+| `RENVER_ADMIN_USER` | `admin` | The username on the sign-in page |
+| `RENVER_TOTP_SECRET` | (none) | Two-factor login: a code from an authenticator app after the password. Make it with `npm run totp` |
 | `RENVER_BACKUP_PASSPHRASE` | (none) | Encrypts every new backup. Strongly recommended |
 | `RENVER_ALLOWED_IPS` | (none) | Only these addresses may reach the panel |
 | `RENVER_SECRET` | (none) | Optional encryption key (base64) instead of `data/secret.key` |
@@ -48,6 +50,7 @@ Copy [.env.example](.env.example) to `.env` to set these (every line is document
 Read [docs/SECURITY.md](docs/SECURITY.md) before putting real apps on it: it explains what is protected, what to switch on (backup encryption, an allowed-addresses list, private repo, disk encryption) and what no software can promise.
 
 - The panel can run code, so in production it needs `RENVER_ADMIN_PASSWORD`. Ten wrong passwords from one address lock that address out for 15 minutes.
+- Optional two-factor login (`npm run totp`) and an activity log (Settings → Activity) of who changed what.
 - Environment variables and database passwords are encrypted with a key in `data/secret.key`. Keep that file (it is inside every backup) and never share it.
 - Every page is sent with headers that stop it being shown inside another site's frame.
 - `GET /api/health` answers `{ "ok": true }` for uptime monitors without a login. GitHub's webhook is checked by signature instead of a login.

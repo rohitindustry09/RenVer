@@ -1,3 +1,4 @@
+import { audited } from "@/lib/audited";
 import { failFrom, ok } from "@/lib/api";
 import { POWER_ACTIONS, PowerError, setProjectPower, type PowerAction } from "@/lib/power";
 
@@ -5,7 +6,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 /** Body: `{ "action": "pause" | "resume" | "restart" }`. */
-export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
+async function handlePOST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const body = (await request.json().catch(() => ({}))) as { action?: unknown };
     const action = POWER_ACTIONS.find((a) => a === body.action) as PowerAction | undefined;
@@ -16,3 +17,5 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     return failFrom(error, 500);
   }
 }
+
+export const POST = audited("project.power", handlePOST, { detail: (b) => (typeof b.action === "string" ? b.action : undefined) });

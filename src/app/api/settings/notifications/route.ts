@@ -1,3 +1,4 @@
+import { audited } from "@/lib/audited";
 import { failFrom, ok } from "@/lib/api";
 import { describeTarget, validateNotifyUrl } from "@/lib/notify";
 import { getNotifyUrl, saveNotifyUrl, sendNotification } from "@/lib/notifier";
@@ -11,7 +12,7 @@ export async function GET() {
   return ok({ isOn: target !== "", target: target ? describeTarget(target) : "" });
 }
 
-export async function PUT(request: Request) {
+async function handlePUT(request: Request) {
   try {
     const body = (await request.json()) as { url?: unknown };
     const checked = validateNotifyUrl(String(body.url ?? ""));
@@ -24,7 +25,7 @@ export async function PUT(request: Request) {
 }
 
 /** Sends a test message to the saved address. */
-export async function POST() {
+async function handlePOST() {
   try {
     const target = getNotifyUrl();
     if (!target) return failFrom("Save an address first.", 409);
@@ -34,3 +35,7 @@ export async function POST() {
     return failFrom(error instanceof Error ? `Could not send: ${error.message}` : error, 502);
   }
 }
+
+export const PUT = audited("settings.notifications", handlePUT);
+
+export const POST = audited("settings.notifications.test", handlePOST);

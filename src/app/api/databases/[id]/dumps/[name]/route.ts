@@ -1,3 +1,4 @@
+import { audited } from "@/lib/audited";
 import fs from "node:fs";
 import { Readable } from "node:stream";
 import { failFrom, ok } from "@/lib/api";
@@ -19,7 +20,7 @@ async function resolve({ params }: Context) {
 }
 
 /** Downloads the dump. It holds the database's data, so it is only served behind the panel login. */
-export async function GET(_request: Request, context: Context) {
+async function handleGET(_request: Request, context: Context) {
   try {
     const { record, name } = await resolve(context);
     const file = dumpPath(config.dataDir, record.name, name);
@@ -37,7 +38,7 @@ export async function GET(_request: Request, context: Context) {
   }
 }
 
-export async function DELETE(_request: Request, context: Context) {
+async function handleDELETE(_request: Request, context: Context) {
   try {
     const { record, name } = await resolve(context);
     deleteDump(config.dataDir, record.name, name);
@@ -48,7 +49,7 @@ export async function DELETE(_request: Request, context: Context) {
 }
 
 /** Replaces the database's contents with this dump, after saving the current contents. */
-export async function POST(_request: Request, context: Context) {
+async function handlePOST(_request: Request, context: Context) {
   try {
     const { record, name } = await resolve(context);
     return ok(await restoreDump(record, name));
@@ -56,3 +57,9 @@ export async function POST(_request: Request, context: Context) {
     return failFrom(error, 500);
   }
 }
+
+export const POST = audited("database.dump.restore", handlePOST);
+
+export const DELETE = audited("database.dump.delete", handleDELETE);
+
+export const GET = audited("database.dump.download", handleGET);

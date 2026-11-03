@@ -34,6 +34,7 @@ import {
   dockerRemove,
   dockerRemoveVolume,
   dockerRunDatabase,
+  dockerRemoveNetwork,
   dockerStart,
   dockerStop,
   ensureNetwork,
@@ -41,6 +42,7 @@ import {
   waitForProbe,
 } from "./docker";
 import { variablesHoldingUrl } from "./database-links";
+import { dbNetworkName } from "./network-names";
 import { enqueue } from "./queue";
 import { decryptEnv, encryptEnv } from "./secrets";
 import { parseEnv } from "./validate";
@@ -99,13 +101,14 @@ async function provision(record: DatabaseRecord, password: string, rootPassword:
   const spec = ENGINES[engine];
   const lines: string[] = [];
   try {
-    await ensureNetwork();
+    await ensureNetwork(dbNetworkName(record.id));
     await dockerRunDatabase({
       name: record.container,
       image: `${spec.image}:${record.version}`,
       volume: record.volume,
       dataDir: spec.dataDir,
       databaseId: record.id,
+      network: dbNetworkName(record.id),
       env: envForEngine(engine, { username: record.username, password, database: record.database, rootPassword }),
       onLine: (line) => lines.push(line),
     });
@@ -236,13 +239,14 @@ export function resumeDatabase(record: DatabaseRecord): Promise<void> {
     } else {
       const { password, rootPassword } = decryptEnv(record.secretEncrypted);
       if (!password || !rootPassword) throw new DatabaseError("Credentials are missing.", 500);
-      await ensureNetwork();
+      await ensureNetwork(dbNetworkName(record.id));
       await dockerRunDatabase({
         name: record.container,
         image: `${spec.image}:${record.version}`,
         volume: record.volume,
         dataDir: spec.dataDir,
         databaseId: record.id,
+        network: dbNetworkName(record.id),
         env: envForEngine(engine, { username: record.username, password, database: record.database, rootPassword }),
         onLine: () => undefined,
       });
@@ -258,6 +262,9 @@ export function resumeDatabase(record: DatabaseRecord): Promise<void> {
       setPendingRestoreDump(record.id, null);
     }
     updateDatabaseStatus(record.id, "running");
+    // Linked apps that are already running need to see this database again, and older containers move to their own networks.
+    const { isolateNetworks } = await import("./isolation");
+    await isolateNetworks().catch(() => undefined);
   });
 }
 
@@ -298,5 +305,6 @@ export function linkedProjectsFor(record: DatabaseRecord): DatabaseLink[] {
 export async function deleteDatabase(record: DatabaseRecord): Promise<void> {
   await dockerRemove(record.container);
   await dockerRemoveVolume(record.volume);
+  await dockerRemoveNetwork(dbNetworkName(record.id)).catch(() => undefined);
   deleteDatabaseRecord(record.id);
 }

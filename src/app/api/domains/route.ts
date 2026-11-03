@@ -1,3 +1,4 @@
+import { audited } from "@/lib/audited";
 import { failFrom, ok } from "@/lib/api";
 import { isCaddyRunning } from "@/lib/caddy";
 import { config } from "@/lib/config";
@@ -31,7 +32,7 @@ export async function GET() {
   });
 }
 
-export async function POST(request: Request) {
+async function handlePOST(request: Request) {
   try {
     const body = (await request.json()) as { name?: unknown };
     const domain = addDomain(typeof body.name === "string" ? body.name : "");
@@ -40,3 +41,5 @@ export async function POST(request: Request) {
     return failFrom(error);
   }
 }
+
+export const POST = audited("domain.add", handlePOST, { detail: (b) => (typeof b.name === "string" ? b.name : undefined) });

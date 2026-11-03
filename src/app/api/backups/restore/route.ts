@@ -1,3 +1,4 @@
+import { audited } from "@/lib/audited";
 import { failFrom, ok } from "@/lib/api";
 import { createBackupWithDatabases } from "@/lib/backup-all";
 import { backupPassphrase } from "@/lib/backup-passphrase";
@@ -12,7 +13,7 @@ export const dynamic = "force-dynamic";
  * Afterwards everything that came back is paused: apps and databases are stopped and nothing is routed, so the owner
  * resumes each one when ready. A database that came with data loads it the first time it is resumed.
  */
-export async function POST(request: Request) {
+async function handlePOST(request: Request) {
   try {
     const body = (await request.json()) as { name?: unknown; passphrase?: unknown };
     const typed = typeof body.passphrase === "string" && body.passphrase ? body.passphrase : undefined;
@@ -28,3 +29,5 @@ export async function POST(request: Request) {
     return failFrom(error, error instanceof RestoreError ? error.status : 500);
   }
 }
+
+export const POST = audited("backup.restore", handlePOST);

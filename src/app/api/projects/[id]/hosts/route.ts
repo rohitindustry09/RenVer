@@ -1,3 +1,4 @@
+import { audited } from "@/lib/audited";
 import { fail, failFrom, ok } from "@/lib/api";
 import { listProjectHosts } from "@/lib/db";
 import { syncProxy } from "@/lib/deploy";
@@ -9,7 +10,7 @@ export const dynamic = "force-dynamic";
 type Context = { params: Promise<{ id: string }> };
 
 /** Adds another address (a subdomain, or the root domain itself) that reaches this project. */
-export async function POST(request: Request, { params }: Context) {
+async function handlePOST(request: Request, { params }: Context) {
   try {
     const { id } = await params;
     const body = (await request.json()) as { domainId?: unknown; label?: unknown };
@@ -21,7 +22,7 @@ export async function POST(request: Request, { params }: Context) {
   }
 }
 
-export async function DELETE(request: Request, { params }: Context) {
+async function handleDELETE(request: Request, { params }: Context) {
   try {
     const { id } = await params;
     const host = new URL(request.url).searchParams.get("host");
@@ -33,3 +34,7 @@ export async function DELETE(request: Request, { params }: Context) {
     return failFrom(error);
   }
 }
+
+export const POST = audited("project.host.add", handlePOST, { detail: (b) => (typeof b.label === "string" ? b.label || "(root domain)" : undefined) });
+
+export const DELETE = audited("project.host.remove", handleDELETE, { detail: (_b, { url }) => url.searchParams.get("host") ?? undefined });

@@ -1,10 +1,11 @@
+import { audited } from "@/lib/audited";
 import { fail, ok } from "@/lib/api";
 import { importFromGithub } from "@/lib/github";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-export async function POST(request: Request) {
+async function handlePOST(request: Request) {
   try {
     const body = (await request.json()) as { url?: unknown; branch?: unknown };
     if (typeof body.url !== "string") return fail("Enter a GitHub repository URL.");
@@ -14,3 +15,5 @@ export async function POST(request: Request) {
     return fail(error);
   }
 }
+
+export const POST = audited("source.import", handlePOST, { detail: (b) => (typeof b.url === "string" ? b.url : undefined) });

@@ -104,6 +104,14 @@ CREATE TABLE IF NOT EXISTS settings (
   key TEXT PRIMARY KEY,
   value TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS audit_log (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  at TEXT NOT NULL,
+  actor TEXT NOT NULL,
+  action TEXT NOT NULL,
+  target TEXT NOT NULL DEFAULT '',
+  detail TEXT NOT NULL DEFAULT ''
+);
 `;
 
 const globalDb = globalThis as typeof globalThis & { __renverDb?: DatabaseSync };
@@ -477,6 +485,72 @@ export function listRunningRoutes(): { hosts: string[]; port: number }[] {
   return running
     .map((p) => ({ hosts: listProjectHosts(p.id).map((h) => h.host), port: p.hostPort as number }))
     .filter((route) => route.hosts.length > 0);
+}
+
+export interface AuditEntry {
+  id: number;
+  at: string;
+  /** Where the request came from: the address a proxy reported, "local" for this machine, or "github". */
+  actor: string;
+  /** A short code such as "project.delete" (see audit-labels.ts). */
+  action: string;
+  target: string;
+  detail: string;
+}
+
+/** The newest this many entries are kept. */
+export const AUDIT_KEEP = 5000;
+const AUDIT_MAX_DETAIL = 500;
+const AUDIT_MAX_FIELD = 200;
+
+/** Failed sign-ins are capped apart from everything else, so a flood of guesses cannot push real history out. */
+export const AUDIT_KEEP_FAILED = 500;
+/** The same actor failing the same way inside this window is recorded once. */
+const AUDIT_FAILED_WINDOW_MS = 60_000;
+const FAILED_SUFFIX = ".failed";
+
+/** Never put a secret in an entry: names and ids only. */
+export function insertAudit(entry: { actor: string; action: string; target?: string; detail?: string }): void {
+  const db = open();
+  const isFailure = entry.action.endsWith(FAILED_SUFFIX);
+  if (isFailure) {
+    const since = new Date(Date.now() - AUDIT_FAILED_WINDOW_MS).toISOString();
+    const recent = db
+      .prepare("SELECT 1 FROM audit_log WHERE actor = ? AND action = ? AND at > ? LIMIT 1")
+      .get(entry.actor.slice(0, AUDIT_MAX_FIELD), entry.action.slice(0, AUDIT_MAX_FIELD), since);
+    if (recent) return;
+  }
+  db.prepare("INSERT INTO audit_log (at, actor, action, target, detail) VALUES (?,?,?,?,?)").run(
+    new Date().toISOString(),
+    entry.actor.slice(0, AUDIT_MAX_FIELD),
+    entry.action.slice(0, AUDIT_MAX_FIELD),
+    (entry.target ?? "").slice(0, AUDIT_MAX_FIELD),
+    (entry.detail ?? "").slice(0, AUDIT_MAX_DETAIL),
+  );
+  trimAudit(db, isFailure);
+}
+
+/** Keeps the newest entries of the kind just written: failures and normal events have separate budgets. */
+function trimAudit(db: DatabaseSync, failures: boolean): void {
+  const keep = failures ? AUDIT_KEEP_FAILED : AUDIT_KEEP;
+  const kind = failures ? "action LIKE '%.failed'" : "action NOT LIKE '%.failed'";
+  db.prepare(
+    `DELETE FROM audit_log WHERE ${kind} AND id < COALESCE((SELECT id FROM audit_log WHERE ${kind} ORDER BY id DESC LIMIT 1 OFFSET ?), 0)`,
+  ).run(keep - 1);
+}
+
+export function listAudit(limit = 100, offset = 0): AuditEntry[] {
+  return open()
+    .prepare("SELECT id, at, actor, action, target, detail FROM audit_log ORDER BY id DESC LIMIT ? OFFSET ?")
+    .all(limit, offset)
+    .map((r) => ({
+      id: Number((r as Row).id),
+      at: String((r as Row).at),
+      actor: String((r as Row).actor),
+      action: String((r as Row).action),
+      target: String((r as Row).target),
+      detail: String((r as Row).detail),
+    }));
 }
 
 export function getSetting(key: string): string | null {

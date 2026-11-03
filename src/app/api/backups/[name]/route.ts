@@ -1,3 +1,4 @@
+import { audited } from "@/lib/audited";
 import fs from "node:fs";
 import { Readable } from "node:stream";
 import { fail, ok } from "@/lib/api";
@@ -10,7 +11,7 @@ export const dynamic = "force-dynamic";
 type Context = { params: Promise<{ name: string }> };
 
 /** Downloads the archive. It holds the encryption key, so it is only served behind the panel login. */
-export async function GET(_request: Request, { params }: Context) {
+async function handleGET(_request: Request, { params }: Context) {
   try {
     const { name } = await params;
     const file = backupPath(config.dataDir, name);
@@ -28,7 +29,7 @@ export async function GET(_request: Request, { params }: Context) {
   }
 }
 
-export async function DELETE(_request: Request, { params }: Context) {
+async function handleDELETE(_request: Request, { params }: Context) {
   try {
     const { name } = await params;
     deleteBackup(config.dataDir, name);
@@ -37,3 +38,7 @@ export async function DELETE(_request: Request, { params }: Context) {
     return fail(error, error instanceof Error && /not found/i.test(error.message) ? 404 : 400);
   }
 }
+
+export const DELETE = audited("backup.delete", handleDELETE);
+
+export const GET = audited("backup.download", handleGET);

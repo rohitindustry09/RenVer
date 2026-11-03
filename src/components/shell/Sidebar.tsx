@@ -4,10 +4,11 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 import { missingRequirements, useSystem } from "@/hooks/useSystem";
+import { useFetch } from "@/hooks/useFetch";
 import { useProjects } from "@/hooks/useProjects";
 import { prefetchRoute } from "@/lib/client-cache";
 import { Logo } from "../Logo";
-import { DatabasesIcon, DeploymentsIcon, DomainsIcon, ProjectsIcon, SearchIcon, SetupIcon, SettingsIcon, ChevronIcon } from "./icons";
+import { DatabasesIcon, DeploymentsIcon, DomainsIcon, ProjectsIcon, SearchIcon, SetupIcon, SettingsIcon, ChevronIcon, SignOutIcon } from "./icons";
 
 interface NavEntry {
   href: string;
@@ -42,6 +43,7 @@ export function Sidebar({ onFind }: Props) {
   const pathname = usePathname();
   const { projects } = useProjects();
   const { data: system } = useSystem();
+  const { data: settings } = useFetch<{ passwordProtected: boolean }>("/api/settings");
   const missing = missingRequirements(system);
 
   return (
@@ -89,6 +91,22 @@ export function Sidebar({ onFind }: Props) {
           <span className="nav-count warn">{missing.length}</span>
         </Link>
       )}
+
+      {settings?.passwordProtected && (
+        <button type="button" className="nav-item sign-out" onClick={() => void signOut()}>
+          <SignOutIcon />
+          <span>Sign out</span>
+        </button>
+      )}
     </div>
   );
+}
+
+/** Clears this browser's sign-in (and code) cookies, then shows the sign-in page. */
+async function signOut(): Promise<void> {
+  try {
+    await fetch("/api/auth/logout", { method: "POST" });
+  } finally {
+    window.location.assign("/login");
+  }
 }

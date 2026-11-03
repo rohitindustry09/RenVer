@@ -1,3 +1,4 @@
+import { audited } from "@/lib/audited";
 import { failFrom, ok } from "@/lib/api";
 import { getProject, updateProjectEnv } from "@/lib/db";
 import { applyEnvChanges } from "@/lib/env-merge";
@@ -24,7 +25,7 @@ export async function GET(_request: Request, { params }: Context) {
 }
 
 /** Replaces all environment variables. */
-export async function PUT(request: Request, { params }: Context) {
+async function handlePUT(request: Request, { params }: Context) {
   try {
     const { id } = await params;
     const project = getProject(id);
@@ -41,7 +42,7 @@ export async function PUT(request: Request, { params }: Context) {
 }
 
 /** Adds, changes or removes some variables and leaves the others alone. Body: `{ set?: {NAME: "value"}, remove?: ["NAME"] }`. */
-export async function PATCH(request: Request, { params }: Context) {
+async function handlePATCH(request: Request, { params }: Context) {
   try {
     const { id } = await params;
     const project = getProject(id);
@@ -58,3 +59,7 @@ export async function PATCH(request: Request, { params }: Context) {
     return failFrom(error);
   }
 }
+
+export const PUT = audited("project.env", handlePUT, { detail: (b) => { const names = (v: unknown) => (v && typeof v === "object" ? Object.keys(v) : []); const set = names(b.set ?? b.env); const removed = Array.isArray(b.remove) ? b.remove.filter((k): k is string => typeof k === "string") : []; return [set.length ? `set ${set.join(", ")}` : "", removed.length ? `removed ${removed.join(", ")}` : ""].filter(Boolean).join("; ") || undefined; } });
+
+export const PATCH = audited("project.env", handlePATCH, { detail: (b) => { const names = (v: unknown) => (v && typeof v === "object" ? Object.keys(v) : []); const set = names(b.set ?? b.env); const removed = Array.isArray(b.remove) ? b.remove.filter((k): k is string => typeof k === "string") : []; return [set.length ? `set ${set.join(", ")}` : "", removed.length ? `removed ${removed.join(", ")}` : ""].filter(Boolean).join("; ") || undefined; } });

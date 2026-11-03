@@ -10,12 +10,14 @@
     "serve": "next build && node scripts/launcher.mjs start",
     "test": "vitest run",
     "preflight": "node src/lib/preflight-cli.ts",
-    "restore": "node src/lib/restore-cli.ts"
+    "restore": "node src/lib/restore-cli.ts",
+    "totp": "node src/lib/totp-cli.ts"
   },
   "dependencies": {
     "adm-zip": "^0.6.1",
     "geist": "^1.9.0",
     "next": "^15.5.0",
+    "qrcode-generator": "2.0.4",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },

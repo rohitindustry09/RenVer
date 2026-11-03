@@ -1,3 +1,4 @@
+import { audited } from "@/lib/audited";
 import { fail, ok } from "@/lib/api";
 import { validateBackupTime } from "@/lib/backup-schedule";
 import { describeSchedule } from "@/lib/backup-schedule-view";
@@ -11,7 +12,7 @@ export async function GET() {
 }
 
 /** Turns automatic backups on or off and sets the time of day (server time). */
-export async function PUT(request: Request) {
+async function handlePUT(request: Request) {
   try {
     const body = (await request.json()) as { enabled?: unknown; time?: unknown };
     const current = getBackupSchedule();
@@ -23,3 +24,5 @@ export async function PUT(request: Request) {
     return fail(error, 500);
   }
 }
+
+export const PUT = audited("settings.backup-schedule", handlePUT);

@@ -89,6 +89,8 @@ export async function dockerRun(opts: {
   runtimeEnv: Record<string, string>;
   /** Memory and CPU for this container. Defaults to the global limits. */
   limits?: { memory: string; cpus: string };
+  /** The Docker network to start on: the app's own (see network-names.ts). */
+  network?: string;
   onLine: LineHandler;
 }): Promise<void> {
   const env = validEnv(opts.runtimeEnv);
@@ -102,7 +104,7 @@ export async function dockerRun(opts: {
     "--memory-swap", limits.memory,
     "--cpus", limits.cpus,
     "--pids-limit", PIDS_LIMIT,
-    "--network", APP_NETWORK,
+    "--network", opts.network ?? APP_NETWORK,
     "--security-opt", "no-new-privileges",
     "--cap-drop", "ALL",
     ...KEPT_CAPABILITIES.flatMap((cap) => ["--cap-add", cap]),
@@ -123,7 +125,7 @@ export async function dockerUpdateLimits(name: string, memory: string, cpus: str
   if (code !== 0) throw new Error(`docker update failed for ${name} (exit ${code})`);
 }
 
-/** Apps and databases share this network, so an app reaches a database by its container name. */
+/** The shared network earlier versions put every app and database on. New containers get their own (network-names.ts). */
 export const APP_NETWORK = "renver";
 const DATABASE_MEMORY = "1g";
 const DB_READY_INTERVAL_MS = 2000;
@@ -137,6 +139,22 @@ export async function ensureNetwork(name: string = APP_NETWORK): Promise<void> {
   if (code !== 0) throw new Error(`Could not create the "${name}" Docker network.`);
 }
 
+/** Puts a container on a network as well. True when it is on it afterwards (including when it already was). */
+export async function dockerNetworkConnect(network: string, container: string): Promise<boolean> {
+  const lines: string[] = [];
+  const code = await runStreaming(["network", "connect", network, container], { onLine: (l) => lines.push(l), timeoutMs: EXEC_TIMEOUT_MS });
+  return code === 0 || lines.some((l) => /already exists|already connected/i.test(l));
+}
+
+/** Takes a container off a network. Quiet when it was not on it. */
+export async function dockerNetworkDisconnect(network: string, container: string): Promise<void> {
+  await runStreaming(["network", "disconnect", network, container], { timeoutMs: EXEC_TIMEOUT_MS });
+}
+
+export async function dockerRemoveNetwork(name: string): Promise<void> {
+  await runStreaming(["network", "rm", name], { timeoutMs: EXEC_TIMEOUT_MS });
+}
+
 export async function dockerRunDatabase(opts: {
   name: string;
   image: string;
@@ -144,6 +162,8 @@ export async function dockerRunDatabase(opts: {
   dataDir: string;
   databaseId: string;
   env: Record<string, string>;
+  /** The Docker network to start on: the database's own. */
+  network?: string;
   onLine: LineHandler;
 }): Promise<void> {
   const env = validEnv(opts.env);
@@ -155,7 +175,7 @@ export async function dockerRunDatabase(opts: {
     "--restart", "unless-stopped",
     "--memory", DATABASE_MEMORY,
     "--pids-limit", PIDS_LIMIT,
-    "--network", APP_NETWORK,
+    "--network", opts.network ?? APP_NETWORK,
     "-v", `${opts.volume}:${opts.dataDir}`,
     ...Object.keys(env).flatMap((k) => ["-e", k]),
     opts.image,

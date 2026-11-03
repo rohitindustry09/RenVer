@@ -1,3 +1,4 @@
+import { audited } from "@/lib/audited";
 import { failFrom, ok } from "@/lib/api";
 import { getDatabaseRecord } from "@/lib/db";
 import { linkDatabase } from "@/lib/databases";
@@ -7,7 +8,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 /** Adds the connection string to a project. With `redeploy: true` the project is deployed again so it takes effect. */
-export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
+async function handlePOST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const record = getDatabaseRecord((await params).id);
     if (!record) return failFrom(Object.assign(new Error("Database not found."), { status: 404 }));
@@ -21,3 +22,5 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     return failFrom(error);
   }
 }
+
+export const POST = audited("database.link", handlePOST, { detail: (b) => (b.redeploy === true ? "with redeploy" : undefined) });

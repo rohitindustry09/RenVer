@@ -1,3 +1,4 @@
+import { audited } from "@/lib/audited";
 import { failFrom, ok } from "@/lib/api";
 import { config } from "@/lib/config";
 import { getDatabaseRecord } from "@/lib/db";
@@ -25,7 +26,7 @@ export async function GET(_request: Request, context: Context) {
 }
 
 /** Saves the database's contents now. */
-export async function POST(_request: Request, context: Context) {
+async function handlePOST(_request: Request, context: Context) {
   try {
     const record = await recordFor(context);
     const dump = await dumpDatabase(record, "manual");
@@ -35,3 +36,5 @@ export async function POST(_request: Request, context: Context) {
     return failFrom(error, 500);
   }
 }
+
+export const POST = audited("database.dump.create", handlePOST);

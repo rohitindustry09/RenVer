@@ -1,3 +1,4 @@
+import { audited } from "@/lib/audited";
 import { failFrom, ok, publicProject } from "@/lib/api";
 import { createDeploy, createProject } from "@/lib/db";
 import { listProjectItems } from "@/lib/project-list";
@@ -18,7 +19,7 @@ export async function GET() {
   return ok(listProjectItems());
 }
 
-export async function POST(request: Request) {
+async function handlePOST(request: Request) {
   try {
     const body = (await request.json()) as Record<string, unknown>;
     const { domain, host } = planProjectHost(String(body.domainId ?? ""), typeof body.label === "string" ? body.label : "");
@@ -52,3 +53,5 @@ export async function POST(request: Request) {
     return failFrom(error);
   }
 }
+
+export const POST = audited("project.create", handlePOST);

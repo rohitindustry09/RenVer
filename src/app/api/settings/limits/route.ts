@@ -1,3 +1,4 @@
+import { audited } from "@/lib/audited";
 import os from "node:os";
 import { fail, ok } from "@/lib/api";
 import { listProjects } from "@/lib/db";
@@ -9,7 +10,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 /** Saves the resource limits. New deploys use them straight away; running apps too when asked. */
-export async function PUT(request: Request) {
+async function handlePUT(request: Request) {
   try {
     const body = (await request.json()) as Record<string, unknown>;
     const checked = validateLimits(
@@ -43,3 +44,5 @@ export async function PUT(request: Request) {
     return fail(error, 500);
   }
 }
+
+export const PUT = audited("settings.limits", handlePUT, { detail: (b) => `memory ${String(b.memory ?? "")}, cpus ${String(b.cpus ?? "")}` });

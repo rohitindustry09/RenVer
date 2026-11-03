@@ -18,6 +18,8 @@ export interface AlertInput {
   memory: { reservedMB: number; totalMB: number };
   disk: { freeBytes: number; totalBytes: number };
   lastBackupAt: Date | null;
+  /** Weak or reused secrets (messages only, never the secrets themselves). */
+  secretWarnings?: { id: string; message: string }[];
 }
 
 const MEMORY_WARN_RATIO = 0.9;
@@ -126,6 +128,10 @@ export function computeAlerts(input: AlertInput): Alert[] {
         href: "/settings",
       });
     }
+  }
+
+  for (const warning of input.secretWarnings ?? []) {
+    alerts.push({ id: `secret-${warning.id}`, severity: "warning", title: "Weak or reused secret", detail: warning.message, href: "/settings" });
   }
 
   return alerts.sort((a, b) => SEVERITY_ORDER[a.severity] - SEVERITY_ORDER[b.severity]);

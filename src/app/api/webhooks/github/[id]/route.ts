@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { recordAudit } from "@/lib/audited";
 import { getProject } from "@/lib/db";
 import { pushTargetsBranch, verifyGithubSignature } from "@/lib/webhook";
 import { deployFromPush, githubSourceFor, webhookSecretFor } from "@/lib/webhooks";
@@ -41,7 +42,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   if (!pushTargetsBranch(payload, source.branch)) return json({ ok: true, ignored: "Push was to another branch." }, 200);
 
   try {
-    return json({ ok: true, ...(await deployFromPush(id)) }, 202);
+    const started = await deployFromPush(id);
+    recordAudit("github", "webhook.deploy", id, source.repo);
+    return json({ ok: true, ...started }, 202);
   } catch (error) {
     return json({ error: error instanceof Error ? error.message : "Could not start the deploy." }, 502);
   }
