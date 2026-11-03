@@ -1,0 +1,32 @@
+# systemd unit for running RenVer on a Linux server so it starts at boot and restarts if it crashes.
+#
+#   sudo cp scripts/renver.service /etc/systemd/system/renver.service
+#   sudo nano /etc/systemd/system/renver.service      # set User, WorkingDirectory and the Environment lines
+#   sudo systemctl daemon-reload && sudo systemctl enable --now renver
+#   journalctl -u renver -f                            # watch its output
+#
+# Run `npm ci && npm run build` in WorkingDirectory first. Caddy and Docker must also start at boot (they do after
+# scripts/install.sh).
+
+[Unit]
+Description=RenVer panel
+After=network-online.target docker.service
+Wants=network-online.target
+Requires=docker.service
+
+[Service]
+Type=simple
+User=renver
+WorkingDirectory=/opt/renver
+Environment=NODE_ENV=production
+Environment=RENVER_MODE=production
+Environment=RENVER_BASE_DOMAIN=example.com
+Environment=RENVER_PANEL_HOST=panel.example.com
+# Keep the real password out of this file if you can: put it in /etc/renver.env (chmod 600) and use EnvironmentFile instead.
+EnvironmentFile=-/etc/renver.env
+ExecStart=/usr/bin/npx next start -H 127.0.0.1 -p 3000
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

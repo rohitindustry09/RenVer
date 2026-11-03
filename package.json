@@ -1,0 +1,30 @@
+{
+  "name": "renver",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "next dev -H 127.0.0.1 -p 3000",
+    "build": "next build",
+    "start": "next start -H 127.0.0.1 -p 3000",
+    "serve": "next build && next start -H 127.0.0.1 -p 3000",
+    "test": "vitest run",
+    "preflight": "node src/lib/preflight-cli.ts",
+    "restore": "node src/lib/restore-cli.ts"
+  },
+  "dependencies": {
+    "adm-zip": "^0.6.1",
+    "geist": "^1.9.0",
+    "next": "^15.5.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@types/adm-zip": "^0.5.7",
+    "@types/node": "^22.10.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "typescript": "^5.7.0",
+    "vitest": "^3.0.0"
+  }
+}
