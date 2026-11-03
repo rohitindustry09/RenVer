@@ -5,6 +5,7 @@ import {
   LOGIN_COOKIE,
   LOGIN_LIFETIME_MS,
   LOGIN_PURPOSE,
+  adminPassword,
   adminUsername,
   credentialsMatch,
   loginKey,
@@ -30,7 +31,7 @@ const refuse = (error: string, status: number, headers?: Record<string, string>)
 
 /** Body: `{ "username": "admin", "password": "…" }`. A correct pair sets the signed sign-in cookie. */
 export async function POST(request: Request) {
-  const password = process.env.RENVER_ADMIN_PASSWORD;
+  const password = adminPassword();
   if (!password) return refuse("Sign-in is not turned on: no password is set.", 400);
 
   const client = clientKey(request.headers);

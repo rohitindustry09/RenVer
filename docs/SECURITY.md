@@ -24,7 +24,7 @@ Everything lives in the `data/` folder (or `RENVER_DATA_DIR`):
 
 1. On the server run `npm run totp`. It draws a **QR code** in the terminal and prints a setup key and a line `RENVER_TOTP_SECRET=…`.
 2. In the authenticator app add an account and **scan the QR code** (or choose "enter a setup key" and type the key if you cannot scan it).
-3. Put the `RENVER_TOTP_SECRET=…` line in the server's settings (`.env`, or `/etc/renver.env`) and restart RenVer.
+3. Put the `RENVER_TOTP_SECRET=…` line in the server's settings (`.env` in the project folder) and restart RenVer.
 
 Already have the key in `.env` and need to add it to a new phone? Run `npm run totp -- --show`: it draws the QR code for the key that is already set, without making a new one. The QR code is drawn in your own terminal and never goes through a website, so nothing leaves your machine. Treat it like the key itself: do not screenshot or share it.
 

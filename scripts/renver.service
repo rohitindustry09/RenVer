@@ -12,7 +12,9 @@
 Description=RenVer panel
 After=network-online.target docker.service
 Wants=network-online.target
-Requires=docker.service
+Wants=docker.service
+# Never stop trying to restart (the default gives up after 5 quick failures, which looks like "sometimes not running").
+StartLimitIntervalSec=0
 
 [Service]
 Type=simple
@@ -22,8 +24,8 @@ Environment=NODE_ENV=production
 Environment=RENVER_MODE=production
 Environment=RENVER_BASE_DOMAIN=example.com
 Environment=RENVER_PANEL_HOST=panel.example.com
-# Keep the real password out of this file if you can: put it in /etc/renver.env (chmod 600) and use EnvironmentFile instead.
-EnvironmentFile=-/etc/renver.env
+# Do NOT put the password here. RenVer reads RENVER_ADMIN_PASSWORD and the other secrets from .env in WorkingDirectory
+# (run `npm run setup` to write it). A value set here would silently override .env.
 ExecStart=/usr/bin/node scripts/launcher.mjs start
 Restart=always
 RestartSec=5

@@ -2,14 +2,14 @@ import { computeAlerts, type Alert } from "./alerts";
 import { listBackups } from "./backup";
 import { config } from "./config";
 import { listDatabaseRecords, listDomains, listProjects } from "./db";
-import { adminUsername } from "./login";
+import { adminPassword, adminUsername } from "./login";
 import { secretWarnings, type SecretWarning } from "./secret-checks";
 import { collectUsage } from "./usage";
 
 /** Weak or reused secrets in this server's settings. Only the warnings leave this function, never the secrets. */
 export function currentSecretWarnings(): SecretWarning[] {
   return secretWarnings({
-    password: process.env.RENVER_ADMIN_PASSWORD || undefined,
+    password: adminPassword(),
     passphrase: process.env.RENVER_BACKUP_PASSPHRASE || undefined,
     username: adminUsername(),
   });

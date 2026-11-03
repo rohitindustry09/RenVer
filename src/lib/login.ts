@@ -16,7 +16,10 @@ export const isLoginExempt = (pathname: string): boolean => LOGIN_EXEMPT_PATHS.h
 
 const DEFAULT_USERNAME = "admin";
 
-/** The username to sign in with: RENVER_ADMIN_USER, or "admin". */
+/** The panel password from the settings. Line-ending characters at the end (a file saved on Windows) are not part of it. */
+export const adminPassword = (): string | undefined => process.env.RENVER_ADMIN_PASSWORD?.replace(/[\r\n]+$/, "") || undefined;
+
+/** The username to sign in with: RENVER_ADMIN_USER, or "admin". Typed in any case (phones capitalize the first letter). */
 export const adminUsername = (configured: string | undefined = process.env.RENVER_ADMIN_USER): string => configured?.trim() || DEFAULT_USERNAME;
 
 /** Signed into the cookie's key, so changing the username or the password signs every browser out. */
@@ -27,7 +30,7 @@ export const loginKey = (username: string, password: string, epoch = ""): string
  * say which was wrong. With no password configured nothing matches.
  */
 export async function credentialsMatch(typedUser: string, typedPassword: string, user: string, password: string): Promise<boolean> {
-  const [userOk, passwordOk] = await Promise.all([constantTimeEqual(typedUser.trim(), user), constantTimeEqual(typedPassword, password)]);
+  const [userOk, passwordOk] = await Promise.all([constantTimeEqual(typedUser.trim().toLowerCase(), user.toLowerCase()), constantTimeEqual(typedPassword, password)]);
   return userOk && passwordOk && password.length > 0;
 }
 

@@ -11,7 +11,8 @@
     "test": "vitest run",
     "preflight": "node src/lib/preflight-cli.ts",
     "restore": "node src/lib/restore-cli.ts",
-    "totp": "node src/lib/totp-cli.ts"
+    "totp": "node src/lib/totp-cli.ts",
+    "setup": "node scripts/setup.mjs"
   },
   "dependencies": {
     "adm-zip": "^0.6.1",

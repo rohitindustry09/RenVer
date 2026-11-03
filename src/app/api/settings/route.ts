@@ -3,7 +3,7 @@ import { ok } from "@/lib/api";
 import { config } from "@/lib/config";
 import { listProjects } from "@/lib/db";
 import { currentSecretWarnings } from "@/lib/alerts-live";
-import { adminUsername } from "@/lib/login";
+import { adminPassword, adminUsername } from "@/lib/login";
 import { getLimits } from "@/lib/runtime-settings";
 
 export const runtime = "nodejs";
@@ -22,7 +22,7 @@ export async function GET() {
     totalMemoryMB: Math.round(os.totalmem() / BYTES_PER_MB),
     runningApps: apps.filter((p) => p.status === "running").length,
     usedPorts: apps.flatMap((p) => (p.hostPort ? [p.hostPort] : [])).sort((a, b) => a - b),
-    passwordProtected: Boolean(process.env.RENVER_ADMIN_PASSWORD),
+    passwordProtected: Boolean(adminPassword()),
     adminUser: adminUsername(),
     secretWarnings: currentSecretWarnings(),
     twoFactor: Boolean(process.env.RENVER_TOTP_SECRET?.trim()),

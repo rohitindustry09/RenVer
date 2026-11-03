@@ -1,7 +1,7 @@
 import { getSessionEpoch } from "@/lib/session-epoch";
 import { NextResponse } from "next/server";
 import { actorOf, recordAudit } from "@/lib/audited";
-import { adminUsername } from "@/lib/login";
+import { adminPassword, adminUsername } from "@/lib/login";
 import { createSessionToken } from "@/lib/session-token";
 import { createFailureLimiter, clientKey } from "@/lib/rate-limit";
 import { getSetting, setSetting } from "@/lib/db";
@@ -66,7 +66,7 @@ export async function POST(request: Request) {
   limiter.reset(client);
   if (!recovery) shared.__renverTotpLastStep = result.step;
   recordAudit(actorOf(request), recovery ? "auth.2fa.recovery" : "auth.2fa.ok");
-  const token = await createSessionToken(twoFactorKey(secret, adminUsername(), process.env.RENVER_ADMIN_PASSWORD ?? "", getSessionEpoch()), Date.now(), TWO_FACTOR_LIFETIME_MS);
+  const token = await createSessionToken(twoFactorKey(secret, adminUsername(), adminPassword() ?? "", getSessionEpoch()), Date.now(), TWO_FACTOR_LIFETIME_MS);
   const response = NextResponse.json({ success: true, data: { ok: true } });
   response.headers.append("Set-Cookie", sessionCookie(token, isSecureRequest(request.headers, request.url) || process.env.RENVER_MODE === "production"));
   return response;

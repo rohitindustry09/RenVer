@@ -21,6 +21,22 @@ Also set Docker Desktop to start at sign-in. After a reboot RenVer's watchdog re
 
 Remove it again with `-Remove`.
 
+## Quick start: `npm run setup` (recommended)
+
+```bash
+git clone https://github.com/rohitindustry09/RenVer.git && cd RenVer
+sudo bash scripts/install.sh --domain example.com   # server only: installs Docker, Caddy, Git, Node.js
+npm ci
+npm run setup                                         # asks questions, writes .env, builds, can write the service file
+npm start                                             # or the systemd service it prints
+```
+
+`npm run setup` asks one question at a time (computer or server, domain, username, password, two-factor, backup passphrase, allowed addresses), can make strong passwords for you, checks your authenticator code before saving, and finishes with a readiness check. Run `npm run setup -- --check` any time to see what is missing. You can still edit `.env` by hand instead (see `.env.example`); both ways produce the same file.
+
+**Only one settings file counts: `.env` in the project folder.** RenVer reads it itself, so `$`, `#` and Windows line endings in a password are safe. If the same setting is also in `/etc/renver.env`, the service file or your shell, that outside value wins and RenVer prints a warning at start. That is the usual reason a correct password is "wrong".
+
+**Why the panel may not be running after a reboot or a crash:** systemd stops retrying after a few quick failures. The service files RenVer writes now set `StartLimitIntervalSec=0` (never give up). Check `journalctl -u renver -n 50` for the reason, and `npm run setup -- --check`.
+
 ## 2. On a server (VPS)
 
 You need a Linux server (Ubuntu 22.04+ or Debian 12+, 2 GB RAM or more) and a domain.
@@ -31,7 +47,7 @@ You need a Linux server (Ubuntu 22.04+ or Debian 12+, 2 GB RAM or more) and a do
    sudo bash scripts/install.sh --domain example.com
    ```
    It installs Docker, Caddy, Git and Node.js, after showing what it will do.
-3. **Settings.** Create `/etc/renver.env` (mode 600):
+3. **Settings.** Run `npm run setup` (or create `.env` in the project folder by hand, mode 600):
    ```
    RENVER_ADMIN_PASSWORD=choose-a-long-password
    ```
@@ -85,7 +101,7 @@ pm2 start scripts/launcher.mjs --name renver -- start
 pm2 startup && pm2 save            # start at boot
 ```
 
-With PM2 set the environment variables (`RENVER_MODE`, `RENVER_ADMIN_PASSWORD`, …) in `.env` in the project folder, because it does not read `/etc/renver.env`. Use one of the two, not both.
+With PM2 set the environment variables (`RENVER_MODE`, `RENVER_ADMIN_PASSWORD`, …) in `.env` in the project folder, which is the one settings file RenVer reads.
 
 ## 3. Before you rely on it
 

@@ -1,6 +1,6 @@
 import { isSameOrigin, parseBasicAuth } from "./auth";
 import { isIpAllowed, parseAllowList, type AllowRule } from "./ip-allow";
-import { LOGIN_COOKIE, LOGIN_PAGE, LOGIN_PURPOSE, adminUsername, credentialsMatch, loginKey, isLoginExempt } from "./login";
+import { LOGIN_COOKIE, LOGIN_PAGE, LOGIN_PURPOSE, adminPassword, adminUsername, credentialsMatch, loginKey, isLoginExempt } from "./login";
 import { clientKey, createFailureLimiter } from "./rate-limit";
 import { verifySessionToken } from "./session-token";
 import { base32Decode } from "./totp";
@@ -83,7 +83,7 @@ export async function guardRequest(request: Request, epoch = ""): Promise<Respon
     return new Response("Cross-site request blocked", { status: 403 });
   }
 
-  const password = process.env.RENVER_ADMIN_PASSWORD;
+  const password = adminPassword();
   if (!password) {
     if (process.env.RENVER_MODE === "production") return new Response("Set RENVER_ADMIN_PASSWORD to enable the panel.", { status: 503 });
     return checkSecondFactor(request, adminUsername(), "", epoch);

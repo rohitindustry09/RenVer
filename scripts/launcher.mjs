@@ -11,6 +11,7 @@ import { spawn } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { parseEnv } from "./env-file.mjs";
 import { findFreePort, isPidAlive, readLock } from "./port-select.mjs";
 
 const MODES = new Set(["dev", "start"]);
@@ -21,9 +22,19 @@ const LOCK_NAME = ".renver.lock";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 process.chdir(root);
 
-// Next reads .env itself, but the launcher needs RENVER_DATA_DIR and RENVER_PORT before Next starts.
+// The launcher reads .env itself (not Next), so a value means the same thing on every machine: "$" is not expanded,
+// Windows line endings and quotes are dropped. Settings already in the environment (systemd, the shell) win.
+const SECRET_KEYS = ["RENVER_ADMIN_PASSWORD", "RENVER_ADMIN_USER", "RENVER_TOTP_SECRET", "RENVER_BACKUP_PASSPHRASE"];
 try {
-  process.loadEnvFile(path.join(root, ".env"));
+  const fromFile = parseEnv(fs.readFileSync(process.env.RENVER_ENV_FILE ? path.resolve(process.env.RENVER_ENV_FILE) : path.join(root, ".env"), "utf8"));
+  for (const [key, value] of Object.entries(fromFile)) {
+    if (process.env[key] === undefined) {
+      process.env[key] = value;
+    } else if (SECRET_KEYS.includes(key) && process.env[key] !== value) {
+      // Never print the values, only that two places disagree. This is how an old password in /etc/renver.env hides a new one.
+      console.warn(`RenVer: ${key} is also set outside .env (the service file, /etc/renver.env or your shell) and differs from .env. The outside value is used.`);
+    }
+  }
 } catch {
   /* no .env file: fine */
 }

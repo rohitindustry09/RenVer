@@ -123,7 +123,8 @@ docker run --rm hello-world >/dev/null && echo "Docker works."
 
 # --- 5. configure ---
 if [ -z "$BASE_DOMAIN" ]; then read -r -p "Base domain (e.g. example.com): " BASE_DOMAIN; fi
-ENV_FILE="/etc/renver.env"
+# One settings file for everything: .env in the project folder (the same one `npm run setup` writes).
+ENV_FILE="$APP_DIR/.env"
 if [ ! -f "$ENV_FILE" ]; then
   umask 077
   ADMIN_PASSWORD="$(head -c 24 /dev/urandom | base64 | tr -dc 'A-Za-z0-9' | head -c 24)"
@@ -133,6 +134,7 @@ RENVER_BASE_DOMAIN=${BASE_DOMAIN}
 RENVER_ADMIN_PASSWORD=${ADMIN_PASSWORD}
 RENVER_DATA_DIR=/var/lib/renver
 EOF
+  chmod 600 "$ENV_FILE"
   echo "Generated admin password (also in $ENV_FILE): ${ADMIN_PASSWORD}"
 fi
 mkdir -p /var/lib/renver
@@ -159,11 +161,11 @@ cat > /etc/systemd/system/renver.service <<EOF
 [Unit]
 Description=RenVer panel
 After=network.target docker.service renver-caddy.service
-Requires=docker.service
+Wants=docker.service
+StartLimitIntervalSec=0
 
 [Service]
 WorkingDirectory=${APP_DIR}
-EnvironmentFile=${ENV_FILE}
 ExecStart=$(command -v npm) start
 Restart=always
 

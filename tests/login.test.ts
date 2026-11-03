@@ -45,8 +45,9 @@ describe("credentialsMatch", () => {
     expect(await credentialsMatch("", "", "admin", "s3cret")).toBe(false);
   });
 
-  it("treats the username as exact: letters matter, spaces do not count as part of it", async () => {
-    expect(await credentialsMatch("Admin", "s3cret", "admin", "s3cret")).toBe(false);
+  it("ignores the case of the username (phones capitalize it) and spaces around it, but not the password's", async () => {
+    expect(await credentialsMatch("Admin", "s3cret", "admin", "s3cret")).toBe(true);
+    expect(await credentialsMatch("admin", "S3cret", "admin", "s3cret")).toBe(false);
     expect(await credentialsMatch(" admin ", "s3cret", "admin", "s3cret")).toBe(true);
   });
 
