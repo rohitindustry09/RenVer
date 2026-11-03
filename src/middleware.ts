@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { guardRequest } from "./lib/guard";
+import { publicOrigin } from "./lib/public-url";
 import { getSessionEpoch } from "./lib/session-epoch";
 import { SETUP_COOKIE, shouldRedirectToSetup } from "./lib/setup-gate";
 
@@ -15,12 +16,12 @@ export async function middleware(request: NextRequest): Promise<Response> {
   if (blocked) {
     // A redirect from the guard names a path; the middleware needs it as a full address on the host the browser used.
     const to = blocked.status === 307 ? blocked.headers.get("location") : null;
-    return to ? NextResponse.redirect(new URL(to, request.url)) : blocked;
+    return to ? NextResponse.redirect(new URL(to, publicOrigin(request.headers, request.url))) : blocked;
   }
 
   const { pathname } = request.nextUrl;
   if (shouldRedirectToSetup(pathname, request.cookies.has(SETUP_COOKIE))) {
-    return NextResponse.redirect(new URL("/setup", request.url));
+    return NextResponse.redirect(new URL("/setup", publicOrigin(request.headers, request.url)));
   }
   return NextResponse.next();
 }

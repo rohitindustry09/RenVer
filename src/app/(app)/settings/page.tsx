@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { ActivityCard } from "@/components/ActivityCard";
 import { BackupsCard } from "@/components/BackupsCard";
 import { NotificationsCard } from "@/components/NotificationsCard";
+import { PanelAddressCard } from "@/components/PanelAddressCard";
 import { ResourcesCard, type ResourceInfo } from "@/components/ResourcesCard";
 import { SkeletonLines } from "@/components/Skeleton";
 import { useFetch } from "@/hooks/useFetch";
@@ -16,6 +17,8 @@ interface SettingsData extends ResourceInfo {
   dataDir: string;
   passwordProtected: boolean;
   adminUser: string;
+  panelHost: string;
+  verifiedDomains: string[];
   secretWarnings: { id: string; message: string }[];
   twoFactor: boolean;
   backupsEncrypted: boolean;
@@ -107,6 +110,8 @@ export default function SettingsPage() {
             <span className="small muted">These come from environment variables. Change them, then restart RenVer. Resource limits are below and can be edited here.</span>
           </div>
         </section>
+
+        {data && <PanelAddressCard key={data.panelHost} host={data.panelHost} verifiedDomains={data.verifiedDomains} onSaved={reload} />}
 
         {data && <ResourcesCard key={JSON.stringify(data.limits)} info={data} onSaved={reload} />}
 

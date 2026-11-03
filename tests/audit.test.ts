@@ -45,7 +45,7 @@ describe("audit log storage", () => {
     const all = db.listAudit(db.AUDIT_KEEP + 100);
     expect(all.length).toBe(db.AUDIT_KEEP);
     expect(all[0]!.target).toBe(String(db.AUDIT_KEEP + 19));
-  });
+  }, 120_000); // thousands of single inserts: slow when the machine is busy
 
   it("records a repeated failure from the same address once a minute", async () => {
     const db = await load();

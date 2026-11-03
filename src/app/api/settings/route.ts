@@ -1,7 +1,8 @@
 import os from "node:os";
 import { ok } from "@/lib/api";
 import { config } from "@/lib/config";
-import { listProjects } from "@/lib/db";
+import { listDomains, listProjects } from "@/lib/db";
+import { getPanelHost } from "@/lib/panel-host";
 import { currentSecretWarnings } from "@/lib/alerts-live";
 import { adminPassword, adminUsername } from "@/lib/login";
 import { getLimits } from "@/lib/runtime-settings";
@@ -24,6 +25,8 @@ export async function GET() {
     usedPorts: apps.flatMap((p) => (p.hostPort ? [p.hostPort] : [])).sort((a, b) => a - b),
     passwordProtected: Boolean(adminPassword()),
     adminUser: adminUsername(),
+    panelHost: getPanelHost() ?? "",
+    verifiedDomains: listDomains().filter((d) => d.status === "verified").map((d) => d.name),
     secretWarnings: currentSecretWarnings(),
     twoFactor: Boolean(process.env.RENVER_TOTP_SECRET?.trim()),
     backupsEncrypted: Boolean(process.env.RENVER_BACKUP_PASSPHRASE),

@@ -4,6 +4,7 @@ import { nextAutoBackup } from "./backup-schedule";
 import { getBackupSchedule } from "./runtime-settings";
 import { getLiveRouteHosts, isCaddyRunning } from "./caddy";
 import { config } from "./config";
+import { getPanelHost } from "./panel-host";
 import {
   listDatabaseRecords,
   listProjects,
@@ -42,7 +43,7 @@ function realDeps(): ReconcileDeps {
       liveHosts: () => getLiveRouteHosts(),
       desiredHosts: () => [
         ...listRunningRoutes().flatMap((route) => route.hosts),
-        ...(config.panelHost ? [config.panelHost] : []),
+        ...(getPanelHost() ? [getPanelHost() as string] : []),
       ],
       apply: () => syncProxy(() => undefined),
     },

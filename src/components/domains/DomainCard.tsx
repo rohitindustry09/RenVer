@@ -147,13 +147,15 @@ export function DomainCard({ domain, serverIp, onChanged }: Props) {
           <table className="dns-table" aria-label="DNS records to add">
             <thead><tr><th>Type</th><th>Name / host</th><th>Value</th></tr></thead>
             <tbody>
-              <RecordRow type="A" name="@" value={serverIp} />
               <RecordRow type="A" name="*" value={serverIp} />
+              <RecordRow type="A" name="@" value={serverIp} />
             </tbody>
           </table>
-          <p className="small muted" style={{ padding: "8px 24px 16px" }}>
-            <span className="mono">@</span> is the root domain itself (<span className="mono">{domain.name}</span>);{" "}
-            <span className="mono">*</span> covers every subdomain.
+          <p className="small muted" style={{ padding: "8px 24px 4px" }}>
+            <span className="mono">*</span> is all you need for apps on subdomains such as <span className="mono">app.{domain.name}</span>. Subdomains that already have their own record (like <span className="mono">www</span>) keep working as they are.
+          </p>
+          <p className="small muted" style={{ padding: "0 24px 16px" }}>
+            <strong>Optional:</strong> <span className="mono">@</span> is the main domain itself (<span className="mono">{domain.name}</span>). Add it only if an app should open on the main domain. <strong>If {domain.name} already hosts a website, do not add it: it would take that site offline.</strong>
           </p>
         </div>
       )}
@@ -178,16 +180,22 @@ export function DomainCard({ domain, serverIp, onChanged }: Props) {
       )}
       {dnsResult && (
         <div className="stack-sm" style={{ padding: "0 24px 16px" }}>
-          {[dnsResult.root, dnsResult.wildcard].map((check) => (
-            <p key={check.name} className={`notice${check.status === "ok" ? "" : check.status === "warn" ? " warn" : " error"}`} role="status">
-              <span className={`dot ${check.status === "ok" ? "ok" : check.status === "warn" ? "warn" : "fail"}`} style={{ marginTop: 6 }} />
-              <span>
-                <span className="mono">{check.name}</span> → {check.addresses.join(", ") || "no answer"}
-                <br />
-                <span className="muted">{check.message}</span>
-              </span>
-            </p>
-          ))}
+          {[dnsResult.wildcard, dnsResult.root].map((check) => {
+            // The main domain is optional: pointing elsewhere is normal, so it never shows as an error.
+            const isRoot = check === dnsResult.root;
+            const status = isRoot && check.status !== "ok" ? "info" : check.status;
+            const message = isRoot && check.status !== "ok" ? "Not pointed at this server. That is fine: the main domain is left alone." : check.message;
+            return (
+              <p key={check.name} className={`notice${status === "ok" || status === "info" ? "" : status === "warn" ? " warn" : " error"}`} role="status">
+                <span className={`dot ${status === "ok" ? "ok" : status === "info" ? "" : status === "warn" ? "warn" : "fail"}`} style={{ marginTop: 6 }} />
+                <span>
+                  <span className="mono">{check.name}</span> → {check.addresses.join(", ") || "no answer"}
+                  <br />
+                  <span className="muted">{message}</span>
+                </span>
+              </p>
+            );
+          })}
         </div>
       )}
       {error && <p className="notice error" style={{ margin: "0 24px 16px" }} role="alert">{error}</p>}

@@ -36,6 +36,7 @@ export const AUDIT_LABELS: Record<string, string> = {
   "backup.upload": "Uploaded a backup",
   "backup.download": "Downloaded a backup",
   "settings.limits": "Changed the resource limits",
+  "settings.panel-host": "Changed the panel address",
   "settings.notifications": "Changed the notification address",
   "settings.notifications.test": "Sent a test notification",
   "settings.server-ip": "Changed the server address",

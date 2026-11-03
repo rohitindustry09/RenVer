@@ -28,6 +28,7 @@ import {
 } from "./docker";
 import { generateDockerfile } from "./dockerfile";
 import { joinLinkedDatabases } from "./isolation";
+import { getPanelHost } from "./panel-host";
 import { appNetworkName } from "./network-names";
 import { appendLog } from "./logs";
 import { effectiveLimits } from "./limits";
@@ -102,7 +103,7 @@ export async function removeRelease(container: string): Promise<void> {
 /** Sends every running project's route to Caddy. Returns whether Caddy accepted the config. */
 export async function syncProxy(log: Log): Promise<boolean> {
   const caddyConfig = buildCaddyConfig(listRunningRoutes(), {
-    panel: config.panelHost ? { hosts: [config.panelHost], port: config.panelPort } : undefined,
+    panel: getPanelHost() ? { hosts: [getPanelHost() as string], port: config.panelPort } : undefined,
   });
   try {
     await ensureCaddyRunning(path.join(config.dataDir, "caddy-bootstrap.json"));
