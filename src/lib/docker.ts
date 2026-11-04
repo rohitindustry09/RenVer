@@ -93,6 +93,8 @@ export async function dockerRun(opts: {
   network?: string;
   /** Named volumes to mount, so these folders keep their files across deploys. */
   volumes?: { name: string; path: string }[];
+  /** DNS servers for this container instead of the server's own. */
+  dns?: string[];
   onLine: LineHandler;
 }): Promise<void> {
   const env = validEnv(opts.runtimeEnv);
@@ -111,6 +113,7 @@ export async function dockerRun(opts: {
     "--cap-drop", "ALL",
     ...KEPT_CAPABILITIES.flatMap((cap) => ["--cap-add", cap]),
     ...(opts.volumes ?? []).flatMap((v) => ["-v", `${v.name}:${v.path}`]),
+    ...(opts.dns ?? []).flatMap((server) => ["--dns", server]),
     "-p", `${config.publishApps ? "0.0.0.0" : "127.0.0.1"}:${opts.hostPort}:${opts.containerPort}`,
     ...Object.keys(env).flatMap((k) => ["-e", k]),
     opts.tag,

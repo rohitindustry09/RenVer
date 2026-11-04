@@ -17,6 +17,8 @@ export interface ProjectConfig {
   limits?: { memory?: string; cpus?: string };
   /** Folders inside the container whose files are kept across deploys (see storage.ts). */
   storage?: string[];
+  /** DNS servers this app's container uses instead of the server's own; empty or missing means the server's. */
+  dns?: string[];
   kind: "server" | "static";
   installCommand: string | null;
   buildCommand: string | null;
@@ -314,6 +316,14 @@ export function updateProjectStorage(id: string, paths: string[]): void {
   const current = getProject(id);
   if (!current) return;
   const next: ProjectConfig = { ...current.config, storage: paths };
+  open().prepare("UPDATE projects SET config = ? WHERE id = ?").run(JSON.stringify(next), id);
+}
+
+/** Saves the DNS servers this app uses. */
+export function updateProjectDns(id: string, servers: string[]): void {
+  const current = getProject(id);
+  if (!current) return;
+  const next: ProjectConfig = { ...current.config, dns: servers };
   open().prepare("UPDATE projects SET config = ? WHERE id = ?").run(JSON.stringify(next), id);
 }
 

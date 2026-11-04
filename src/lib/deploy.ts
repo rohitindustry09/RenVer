@@ -158,6 +158,7 @@ async function buildAndStart(
     limits: effectiveLimits(getLimits(), project.config.limits),
     network,
     volumes: (project.config.storage ?? []).map((path) => ({ name: volumeName(project.id, path), path })),
+    dns: project.config.dns,
     onLine: log,
   });
   await joinLinkedDatabases(project.id, container, log);
