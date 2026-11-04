@@ -6,6 +6,7 @@ import type { DatabaseListItem, PublicProject } from "@/lib/api";
 import { api } from "@/lib/client-api";
 import { ENGINES, isEngine } from "@/lib/database-engines";
 import { isBusyStatus, statusLabel, timeAgo } from "@/lib/format";
+import { DataViewer } from "./DataViewer";
 import { ConfirmDelete } from "../ConfirmDelete";
 import { DatabaseBackups } from "./DatabaseBackups";
 import { Select } from "../Select";
@@ -44,6 +45,7 @@ export function DatabaseCard({ database, projects, onChanged }: Props) {
   const [isDeleting, setIsDeleting] = useState(false);
   const [isShowingBackups, setIsShowingBackups] = useState(false);
   const [deployedProjectId, setDeployedProjectId] = useState<string | null>(null);
+  const [isViewingData, setIsViewingData] = useState(false);
   const [busy, setBusy] = useState<"show" | "link" | "redeploy" | "delete" | "pause" | "resume" | null>(null);
   const [message, setMessage] = useState<{ kind: "ok" | "error"; text: string } | null>(null);
 
@@ -172,6 +174,8 @@ export function DatabaseCard({ database, projects, onChanged }: Props) {
         </p>
       )}
 
+      {isViewingData && <DataViewer databaseId={database.id} databaseName={database.name} onClose={() => setIsViewingData(false)} />}
+
       {isShowingBackups && <DatabaseBackups databaseId={database.id} databaseName={database.name} isRunning={isRunning} />}
 
       {isDeleting && (
@@ -189,6 +193,9 @@ export function DatabaseCard({ database, projects, onChanged }: Props) {
         <div className="toolbar">
           <button type="button" className="btn sm" disabled={!isRunning || busy !== null} onClick={toggleConnection}>
             {busy === "show" ? "Loading…" : credentials ? "Hide connection" : "Show connection"}
+          </button>
+          <button type="button" className="btn sm" disabled={!isRunning || busy !== null} onClick={() => setIsViewingData(true)}>
+            View data
           </button>
           <button type="button" className="btn sm" aria-expanded={isShowingBackups} onClick={() => setIsShowingBackups((v) => !v)}>
             Backups

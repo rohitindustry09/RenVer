@@ -27,6 +27,7 @@ export const AUDIT_LABELS: Record<string, string> = {
   "domain.verify": "Checked a domain's ownership",
   "database.create": "Created a database",
   "database.delete": "Deleted a database",
+  "database.view": "Looked at the data in a database",
   "database.link": "Linked a database to a project",
   "database.power": "Paused or resumed a database",
   "database.dump.create": "Backed up a database",
