@@ -7,12 +7,19 @@ import { removeRelease, syncProxy } from "@/lib/deploy";
 import { dockerRemoveNetwork, dockerRemoveVolume } from "@/lib/docker";
 import { volumeName } from "@/lib/volume-name";
 import { appNetworkName } from "@/lib/network-names";
+import { readUploadSource } from "@/lib/uploads";
 import { forgetWebhookSecret, githubSourceFor } from "@/lib/webhooks";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 type Context = { params: Promise<{ id: string }> };
+
+/** Where a deployment's code came from (and for GitHub, which commit), or null when that was not saved. */
+function deploySource(uploadId: string | null) {
+  const meta = uploadId ? readUploadSource(uploadId) : null;
+  return meta ? { source: meta.source, label: meta.label, branch: meta.branch, commit: meta.commit ?? null, message: meta.message ?? null } : null;
+}
 
 /** http://<server ip>:<port> when apps are published on the server's IP (RENVER_PUBLISH_APPS), else null. */
 function directUrlFor(hostPort: number | null): string | null {
@@ -26,7 +33,7 @@ export async function GET(_request: Request, { params }: Context) {
   if (!project) return fail("Project not found.", 404);
   return ok({
     project: publicProject(project),
-    deploys: listDeploys(id),
+    deploys: listDeploys(id).map((d) => ({ ...d, source: deploySource(d.uploadId) })),
     hosts: listProjectHosts(id).map((h) => h.host),
     directUrl: directUrlFor(project.hostPort),
     github: githubSourceFor(id),

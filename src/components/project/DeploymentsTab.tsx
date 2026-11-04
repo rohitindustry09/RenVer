@@ -1,13 +1,15 @@
 "use client";
 
 import { useState } from "react";
-import type { Deploy } from "@/lib/db";
 import { durationLabel, isBusyStatus, statusLabel, timeAgo } from "@/lib/format";
 import { ConfirmDialog } from "../ConfirmDialog";
 import { LogViewer } from "../LogViewer";
+import type { DeployWithSource } from "./types";
+
+const SHORT_SHA = 7;
 
 interface Props {
-  deploys: Deploy[];
+  deploys: DeployWithSource[];
   activeId: string | null;
   onToggle: (deployId: string | null) => void;
   /** Rebuilds the project from an earlier deployment's source. */
@@ -51,6 +53,11 @@ export function DeploymentsTab({ deploys, activeId, onToggle, onRollback, isBusy
             >
               <span className={`dot ${deploy.status}${isBusyStatus(deploy.status) ? " pulse" : ""}`} aria-hidden="true" />
               <span className="mono">{deploy.id}</span>
+              {deploy.source?.commit && (
+                <span className="mono small muted" title={deploy.source.message ?? "GitHub commit"}>
+                  {deploy.source.commit.slice(0, SHORT_SHA)}
+                </span>
+              )}
               <span className="grow muted">
                 {statusLabel(deploy.status)}
                 {duration && ` · ${duration}`}
@@ -61,6 +68,26 @@ export function DeploymentsTab({ deploys, activeId, onToggle, onRollback, isBusy
             </button>
             {isOpen && (
               <div className="deploy-body">
+                {deploy.source && (
+                  <p className="small muted" style={{ marginBottom: 12, overflowWrap: "anywhere" }}>
+                    {deploy.source.source === "github" ? (
+                      deploy.source.commit ? (
+                        <>
+                          Code from GitHub {deploy.source.label}
+                          {deploy.source.branch ? ` (${deploy.source.branch})` : ""}, commit{" "}
+                          <a className="mono" href={`https://github.com/${deploy.source.label}/commit/${deploy.source.commit}`} target="_blank" rel="noopener noreferrer">
+                            {deploy.source.commit.slice(0, SHORT_SHA)}
+                          </a>
+                          {deploy.source.message ? `: ${deploy.source.message}` : ""}
+                        </>
+                      ) : (
+                        <>Code from GitHub {deploy.source.label}. The commit was not saved for this older deployment.</>
+                      )
+                    ) : (
+                      <>Code from the uploaded file {deploy.source.label}.</>
+                    )}
+                  </p>
+                )}
                 {index > 0 && deploy.status === "live" && deploy.uploadId && (
                   <div className="toolbar" style={{ marginBottom: 12 }}>
                     <button type="button" className="btn sm" disabled={isBusy} onClick={() => setRollbackId(deploy.id)}>

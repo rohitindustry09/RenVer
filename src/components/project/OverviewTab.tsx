@@ -8,6 +8,8 @@ import { hostUrl } from "@/lib/domain-names";
 import { durationLabel, isBusyStatus, statusLabel, timeAgo } from "@/lib/format";
 import type { ProjectDetail } from "./types";
 
+const SHORT_SHA = 7;
+
 interface Props {
   detail: ProjectDetail;
   url: string;
@@ -27,6 +29,9 @@ function Kv({ label, children }: { label: string; children: React.ReactNode }) {
 export function OverviewTab({ detail, url, host, onOpenDeploy }: Props) {
   const { project, deploys } = detail;
   const latest = deploys[0];
+  // The commit of the version that is serving traffic now: the newest deployment that went live.
+  const liveSource = deploys.find((d) => d.status === "live")?.source;
+  const liveCommit = liveSource?.source === "github" && liveSource.commit ? { commit: liveSource.commit, label: liveSource.label, message: liveSource.message } : null;
   const isLive = project.status === "running";
   const canPreview = useFetch<{ canPreview: boolean }>(isLive ? `/api/projects/${project.id}/preview` : null).data?.canPreview ?? false;
 
@@ -59,6 +64,14 @@ export function OverviewTab({ detail, url, host, onOpenDeploy }: Props) {
             <Kv label="Status">
               <span className="status"><span className={`dot ${project.status}`} aria-hidden="true" />{statusLabel(project.status)}</span>
             </Kv>
+            {liveCommit && (
+              <Kv label="Commit">
+                <a className="mono" href={`https://github.com/${liveCommit.label}/commit/${liveCommit.commit}`} target="_blank" rel="noopener noreferrer" title={liveCommit.message ?? undefined}>
+                  {liveCommit.commit.slice(0, SHORT_SHA)}
+                </a>
+                {liveCommit.message ? <span className="muted"> · {liveCommit.message}</span> : null}
+              </Kv>
+            )}
             <Kv label="Created">{timeAgo(project.createdAt)}</Kv>
             <Kv label="Framework">
               <span style={{ display: "inline-flex", gap: 8, alignItems: "center" }}>
@@ -88,6 +101,12 @@ export function OverviewTab({ detail, url, host, onOpenDeploy }: Props) {
                 {durationLabel(latest.createdAt, latest.finishedAt) && ` · ${durationLabel(latest.createdAt, latest.finishedAt)}`}
                 {latest.error && ` · ${latest.error}`}
               </div>
+              {latest.source?.commit && (
+                <div className="row-desc">
+                  Commit <span className="mono">{latest.source.commit.slice(0, SHORT_SHA)}</span>
+                  {latest.source.message ? ` · ${latest.source.message}` : ""}
+                </div>
+              )}
             </div>
             <div className="row-end">
               <button type="button" className="btn sm" onClick={() => onOpenDeploy(latest.id)}>View build log</button>

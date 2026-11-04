@@ -12,6 +12,9 @@ export interface UploadMeta {
   source: "zip" | "github";
   label: string;
   branch: string | null;
+  /** For a GitHub import: the full commit id that was fetched, and its first message line. */
+  commit?: string | null;
+  message?: string | null;
 }
 
 export interface AnalyzedUpload {

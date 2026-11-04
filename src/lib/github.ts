@@ -29,8 +29,9 @@ function cloneArgs(cloneUrl: string, dest: string, branch: string | null): strin
   ];
 }
 
-function runGit(args: string[], extraEnv: Record<string, string> = {}): Promise<{ code: number; stderr: string; timedOut: boolean }> {
+function runGit(args: string[], extraEnv: Record<string, string> = {}): Promise<{ code: number; stdout: string; stderr: string; timedOut: boolean }> {
   return new Promise((resolve, reject) => {
+    let stdout = "";
     let stderr = "";
     let timedOut = false;
     const child = spawn(resolveBinary("git"), args, {
@@ -41,6 +42,9 @@ function runGit(args: string[], extraEnv: Record<string, string> = {}): Promise<
       timedOut = true;
       child.kill();
     }, CLONE_TIMEOUT_MS);
+    child.stdout.on("data", (chunk: Buffer) => {
+      stdout = (stdout + chunk.toString("utf8")).slice(-STDERR_TAIL_CHARS);
+    });
     child.stderr.on("data", (chunk: Buffer) => {
       stderr = (stderr + chunk.toString("utf8")).slice(-STDERR_TAIL_CHARS);
     });
@@ -50,7 +54,7 @@ function runGit(args: string[], extraEnv: Record<string, string> = {}): Promise<
     });
     child.once("close", (code) => {
       clearTimeout(timer);
-      resolve({ code: code ?? 1, stderr, timedOut });
+      resolve({ code: code ?? 1, stdout, stderr, timedOut });
     });
   });
 }
@@ -64,6 +68,19 @@ function cloneFailureMessage(stderr: string, branch: string | null, timedOut: bo
       : "Repository not found, or it is private. Connect GitHub in Settings to use private repositories.";
   }
   return "Could not clone the repository.";
+}
+
+/** The commit that was just cloned: its id and first message line. Missing values are null, never an error. */
+export async function readHead(dest: string): Promise<{ commit: string | null; message: string | null }> {
+  try {
+    const id = await runGit(["-C", dest, "rev-parse", "HEAD"]);
+    const subject = await runGit(["-C", dest, "log", "-1", "--format=%s"]);
+    const commit = /^[0-9a-f]{40}$/.test(id.stdout.trim()) ? id.stdout.trim() : null;
+    const message = subject.code === 0 ? subject.stdout.split(/\r?\n/)[0]!.trim().slice(0, 200) || null : null;
+    return { commit, message };
+  } catch {
+    return { commit: null, message: null };
+  }
 }
 
 export async function importFromGithub(input: { url: string; branch?: string | null }): Promise<AnalyzedUpload> {
@@ -80,11 +97,12 @@ export async function importFromGithub(input: { url: string; branch?: string | n
     const { code, stderr, timedOut } = await runGit(cloneArgs(parsed.cloneUrl, dest, branch), gitAuthEnv(token));
     if (code !== 0) throw new Error(redactToken(cloneFailureMessage(stderr, branch, timedOut, token !== null), token));
 
+    const { commit, message } = await readHead(dest);
     fs.rmSync(path.join(dest, ".git"), { recursive: true, force: true });
     const stats = directoryStats(dest, { maxFiles: MAX_FILES, maxBytes: MAX_BYTES });
     if (stats.files > MAX_FILES || stats.bytes > MAX_BYTES) throw new Error("This repository is too large to import.");
 
-    return finalizeUpload(uploadId, base, dest, { source: "github", label: parsed.label, branch });
+    return finalizeUpload(uploadId, base, dest, { source: "github", label: parsed.label, branch, commit, message });
   } catch (error) {
     discardUpload(base);
     if (error instanceof Error && "code" in error && (error as NodeJS.ErrnoException).code === "ENOENT") {
