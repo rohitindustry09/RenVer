@@ -72,7 +72,7 @@ export function DatabaseCard({ database, projects, onChanged }: Props) {
 
   const link = (redeploy: boolean) =>
     run(redeploy ? "redeploy" : "link", async () => {
-      const result = await api<{ variable: string; deployId: string | null }>(`/api/databases/${database.id}/link`, {
+      const result = await api<{ variable: string; deployId: string | null; pulled: boolean; note: string | null }>(`/api/databases/${database.id}/link`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ projectId, redeploy }),
@@ -82,8 +82,8 @@ export function DatabaseCard({ database, projects, onChanged }: Props) {
       setMessage({
         kind: "ok",
         text: result.deployId
-          ? `Added ${result.variable} to ${name} and started a redeploy.`
-          : `Added ${result.variable} to ${name}. Redeploy it to apply.`,
+          ? `Added ${result.variable} to ${name} and started a deploy${result.pulled ? " with the latest code from GitHub" : ""}.${result.note ? ` ${result.note}` : ""}`
+          : `Added ${result.variable} to ${name}. Press Pull latest or Redeploy on the project to apply it.`,
       });
       setDeployedProjectId(redeploy ? projectId : null);
       setProjectId("");
