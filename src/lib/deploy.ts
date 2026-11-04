@@ -148,6 +148,7 @@ async function buildAndStart(
   const network = appNetworkName(project.id);
   await ensureNetwork(network);
   log(`Starting container on port ${hostPort}`);
+  if (project.config.dns?.length) log(`Using DNS servers ${project.config.dns.join(", ")} for this app.`);
   await dockerRun({
     name: container,
     tag,

@@ -39,10 +39,11 @@ export function DnsCard({ project, onSaved }: Props) {
     }
   };
 
+  // Read the logs again whenever a new container is serving: after a redeploy the old container's lines are gone.
   useEffect(() => {
     void scanLogs();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [project.id, isRunning]);
+  }, [project.id, isRunning, project.container]);
 
   const save = async (servers: string[], thenRedeploy: boolean) => {
     setIsBusy(true);
@@ -56,7 +57,9 @@ export function DnsCard({ project, onSaved }: Props) {
       });
       if (thenRedeploy) {
         await api(`/api/projects/${project.id}/redeploy`, { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
-        setNote("Saved. The app is being deployed again with these DNS servers.");
+        // The warning came from the old container's logs; it no longer applies. The card checks again once the new one runs.
+        setFailure(null);
+        setNote("Saved. The app is being deployed again with these DNS servers. This card checks the new logs when it is running.");
       } else {
         setNote("Saved. It takes effect on the next deploy: press Redeploy.");
       }
@@ -77,14 +80,15 @@ export function DnsCard({ project, onSaved }: Props) {
           <div className="notice warn" role="status">
             <span>
               <strong>This app could not look up {failure.host ? <span className="mono">{failure.host}</span> : "a name"}.</strong>{" "}
-              That usually means the server&apos;s DNS is unreliable for some names. Giving this app public DNS servers
-              ({PUBLIC_DNS.join(", ")}) normally fixes it.
+              {saved.length > 0
+                ? `This app already uses DNS servers (${saved.join(", ")}) and still fails. Check that the name is spelled right and that the server allows outgoing DNS (port 53). If this line is old, press "Check again" after the deploy has finished.`
+                : `That usually means the server's DNS is unreliable for some names. Giving this app public DNS servers (${PUBLIC_DNS.join(", ")}) normally fixes it.`}
               <br />
               <span className="small mono muted" style={{ overflowWrap: "anywhere" }}>{failure.line}</span>
             </span>
           </div>
         )}
-        {failure && (
+        {failure && saved.length === 0 && (
           <div className="toolbar">
             <button type="button" className="btn primary sm" disabled={isBusy || project.status === "deploying"} onClick={() => void save(PUBLIC_DNS, true)}>
               {isBusy ? "Working…" : "Use public DNS and redeploy"}
