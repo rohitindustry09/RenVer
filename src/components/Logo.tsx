@@ -1,11 +1,18 @@
-export function Logo({ size = 24 }: { size?: number }) {
+interface Props {
+  size?: number;
+  /** Plays the logo animation (public/brand/logo-animated.gif). People who ask their device for less motion get the still logo. */
+  animated?: boolean;
+}
+
+/** The RenVer "R" mark: sidebar, sign-in page and setup page. The files live in public/brand (the tab icon is set in layout.tsx). */
+export function Logo({ size = 24, animated = false }: Props) {
+  const style = { display: "block", borderRadius: size * 0.22 } as const;
+  /* eslint-disable @next/next/no-img-element -- small fixed logos; no resizing service needed */
+  if (!animated) return <img src="/brand/logo.png" width={size} height={size} alt="" aria-hidden="true" style={style} />;
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <circle cx="12" cy="12" r="11" fill="currentColor" />
-      <path
-        d="M9 17V7h4.2a2.8 2.8 0 0 1 .9 5.45L16 17h-1.9l-1.7-4H10.8v4H9Zm1.8-5.6h2.3a1.2 1.2 0 0 0 0-2.4h-2.3v2.4Z"
-        fill="var(--bg)"
-      />
-    </svg>
+    <picture>
+      <source media="(prefers-reduced-motion: reduce)" srcSet="/brand/logo.png" />
+      <img src="/brand/logo-animated.gif" width={size} height={size} alt="" aria-hidden="true" style={style} />
+    </picture>
   );
 }

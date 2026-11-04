@@ -343,4 +343,14 @@ describe("middleware matcher", () => {
       expect(matcher.test(selfGuarded), selfGuarded).toBe(false);
     }
   });
+
+  it("lets the logo and tab icons load before sign-in, so the sign-in page looks right", async () => {
+    const { pathToRegexp } = await import("next/dist/compiled/path-to-regexp");
+    const { config } = await import("@/middleware");
+    const matcher = pathToRegexp(config.matcher[0]!);
+    for (const asset of ["/brand/logo.png", "/brand/logo-animated.gif", "/brand/icon-32.png", "/brand/apple-icon.png", "/favicon.ico"]) {
+      expect(matcher.test(asset), asset).toBe(false);
+    }
+    expect(matcher.test("/brandx/secret"), "/brandx/secret").toBe(true);
+  });
 });

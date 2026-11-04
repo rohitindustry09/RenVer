@@ -37,7 +37,7 @@ function Form() {
     <form className="card" style={{ width: "min(420px, 100%)" }} onSubmit={submit} aria-labelledby="login-heading">
       <div className="card-head" style={{ display: "grid", gap: 12 }}>
         <span style={{ display: "inline-flex", alignItems: "center", gap: 10 }}>
-          <Logo size={28} />
+          <Logo size={44} animated />
           <strong style={{ fontSize: 18 }}>RenVer</strong>
         </span>
         <div>

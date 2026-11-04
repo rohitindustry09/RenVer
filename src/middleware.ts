@@ -33,5 +33,6 @@ export async function middleware(request: NextRequest): Promise<Response> {
 export const config = {
   // Node.js runtime, so the middleware can read the session epoch from the database.
   runtime: "nodejs",
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|api/analyze$|api/backups/upload$).*)"],
+  // brand/ holds the logo and tab icons: they must load on the sign-in page too, before anyone is signed in.
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|brand/|api/analyze$|api/backups/upload$).*)"],
 };
