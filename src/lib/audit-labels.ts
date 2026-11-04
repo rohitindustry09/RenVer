@@ -38,6 +38,8 @@ export const AUDIT_LABELS: Record<string, string> = {
   "backup.delete": "Deleted a backup",
   "backup.upload": "Uploaded a backup",
   "backup.download": "Downloaded a backup",
+  "settings.github": "Connected GitHub",
+  "settings.github.remove": "Disconnected GitHub",
   "settings.limits": "Changed the resource limits",
   "settings.panel-host": "Changed the panel address",
   "settings.notifications": "Changed the notification address",

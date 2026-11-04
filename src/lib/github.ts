@@ -3,6 +3,8 @@ import fs from "node:fs";
 import path from "node:path";
 import { resolveBinary } from "./binaries";
 import { directoryStats } from "./dir-stats";
+import { getGithubToken, gitAuthEnv } from "./github-auth";
+import { redactToken } from "./github-token";
 import { isValidBranch, parseGithubUrl } from "./github-url";
 import { createUploadDir, discardUpload, finalizeUpload, type AnalyzedUpload } from "./uploads";
 
@@ -27,12 +29,12 @@ function cloneArgs(cloneUrl: string, dest: string, branch: string | null): strin
   ];
 }
 
-function runGit(args: string[]): Promise<{ code: number; stderr: string; timedOut: boolean }> {
+function runGit(args: string[], extraEnv: Record<string, string> = {}): Promise<{ code: number; stderr: string; timedOut: boolean }> {
   return new Promise((resolve, reject) => {
     let stderr = "";
     let timedOut = false;
     const child = spawn(resolveBinary("git"), args, {
-      env: { ...process.env, GIT_TERMINAL_PROMPT: "0", GCM_INTERACTIVE: "never" },
+      env: { ...process.env, GIT_TERMINAL_PROMPT: "0", GCM_INTERACTIVE: "never", ...extraEnv },
       windowsHide: true,
     });
     const timer = setTimeout(() => {
@@ -53,11 +55,13 @@ function runGit(args: string[]): Promise<{ code: number; stderr: string; timedOu
   });
 }
 
-function cloneFailureMessage(stderr: string, branch: string | null, timedOut: boolean): string {
+function cloneFailureMessage(stderr: string, branch: string | null, timedOut: boolean, hasToken: boolean): string {
   if (timedOut) return "Cloning took too long. Try a smaller repository.";
   if (BRANCH_MISSING_PATTERN.test(stderr)) return `Branch "${branch ?? ""}" was not found in this repository.`;
   if (NOT_FOUND_PATTERN.test(stderr)) {
-    return "Repository not found, or it is private. Private repositories are not supported yet.";
+    return hasToken
+      ? "Repository not found, or your GitHub token cannot read it. In GitHub, give the token access to this repository (Contents: Read-only)."
+      : "Repository not found, or it is private. Connect GitHub in Settings to use private repositories.";
   }
   return "Could not clone the repository.";
 }
@@ -72,8 +76,9 @@ export async function importFromGithub(input: { url: string; branch?: string | n
   const { uploadId, base } = createUploadDir();
   const dest = path.join(base, "src");
   try {
-    const { code, stderr, timedOut } = await runGit(cloneArgs(parsed.cloneUrl, dest, branch));
-    if (code !== 0) throw new Error(cloneFailureMessage(stderr, branch, timedOut));
+    const token = getGithubToken();
+    const { code, stderr, timedOut } = await runGit(cloneArgs(parsed.cloneUrl, dest, branch), gitAuthEnv(token));
+    if (code !== 0) throw new Error(redactToken(cloneFailureMessage(stderr, branch, timedOut, token !== null), token));
 
     fs.rmSync(path.join(dest, ".git"), { recursive: true, force: true });
     const stats = directoryStats(dest, { maxFiles: MAX_FILES, maxBytes: MAX_BYTES });

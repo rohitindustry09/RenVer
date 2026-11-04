@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { ActivityCard } from "@/components/ActivityCard";
 import { BackupsCard } from "@/components/BackupsCard";
+import { GithubCard } from "@/components/GithubCard";
 import { NotificationsCard } from "@/components/NotificationsCard";
 import { PanelAddressCard } from "@/components/PanelAddressCard";
 import { ResourcesCard, type ResourceInfo } from "@/components/ResourcesCard";
@@ -114,6 +115,8 @@ export default function SettingsPage() {
         {data && <PanelAddressCard key={data.panelHost} host={data.panelHost} verifiedDomains={data.verifiedDomains} onSaved={reload} />}
 
         {data && <ResourcesCard key={JSON.stringify(data.limits)} info={data} onSaved={reload} />}
+
+        <GithubCard />
 
         <BackupsCard />
 
