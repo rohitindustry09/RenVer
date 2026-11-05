@@ -38,7 +38,10 @@ export interface CleanupScan {
 }
 
 export interface DockerDf {
-  images: { repository: string; tag: string; id: string; containers: number; bytes: number }[];
+  /** `bytes` is what removing the image frees (its own layers); `fullBytes` is its whole size, as `docker images` shows. */
+  images: { repository: string; tag: string; id: string; containers: number; bytes: number; fullBytes: number }[];
+  /** `bytes` is the container's own writable layer, not its image. */
+  containers: { name: string; image: string; bytes: number }[];
   volumes: { name: string; links: number; bytes: number; isAnonymous: boolean }[];
   buildCache: { description: string; inUse: boolean; bytes: number }[];
 }
@@ -69,6 +72,13 @@ export function parseDockerDf(raw: unknown): DockerDf {
       id: str(i.ID),
       containers: Number(i.Containers) || 0,
       bytes: parseDockerSize(i.UniqueSize) || parseDockerSize(i.Size),
+      fullBytes: parseDockerSize(i.Size),
+    })),
+    containers: list(root.Containers).map((k) => ({
+      name: str(k.Names).split(",")[0] ?? "",
+      image: str(k.Image),
+      // Older Docker versions print "20.5kB (virtual 646MB)"; only the first part is the writable layer.
+      bytes: parseDockerSize(str(k.Size).split(" ")[0]),
     })),
     volumes: list(root.Volumes).map((v) => ({
       name: str(v.Name),

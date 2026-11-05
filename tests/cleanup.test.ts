@@ -42,7 +42,7 @@ describe("parseDockerSize", () => {
 
 describe("parseDockerDf", () => {
   it("copes with missing parts", () => {
-    expect(parseDockerDf({})).toEqual({ images: [], volumes: [], buildCache: [] });
+    expect(parseDockerDf({})).toEqual({ images: [], containers: [], volumes: [], buildCache: [] });
     expect(parseDockerDf(null).images).toEqual([]);
   });
 

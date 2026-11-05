@@ -4,7 +4,7 @@ import { listBackups } from "./backup";
 import { config } from "./config";
 import { countDeploysSince, listDatabaseRecords, listProjects } from "./db";
 import { directoryStats } from "./dir-stats";
-import { DATABASE_MEMORY_MB, memoryToMb } from "./limits";
+import { reservedMemory } from "./reserved-memory";
 import { getLimits } from "./runtime-settings";
 
 const BYTES_PER_MB = 1024 * 1024;
@@ -15,7 +15,7 @@ export interface Usage {
   projects: { total: number; running: number };
   databases: { total: number; running: number };
   deploys30d: number;
-  memory: { reservedMB: number; totalMB: number };
+  memory: { reservedMB: number; appsReservedMB: number; databasesReservedMB: number; totalMB: number };
   cpu: { reserved: number; total: number };
   disk: { dataBytes: number; freeBytes: number; totalBytes: number };
   backups: { count: number; lastAt: string | null };
@@ -46,8 +46,7 @@ export function collectUsage(now: Date = new Date()): Usage {
   const databases = listDatabaseRecords();
   const runningApps = projects.filter((p) => p.status === "running").length;
   const runningDatabases = databases.filter((d) => d.status === "running").length;
-  const limits = getLimits();
-  const perAppMb = memoryToMb(limits.memory) ?? 0;
+  const reserved = reservedMemory(projects, runningDatabases, getLimits());
   const backups = listBackups(config.dataDir);
 
   return {
@@ -55,10 +54,12 @@ export function collectUsage(now: Date = new Date()): Usage {
     databases: { total: databases.length, running: runningDatabases },
     deploys30d: countDeploysSince(new Date(now.getTime() - THIRTY_DAYS_MS).toISOString()),
     memory: {
-      reservedMB: runningApps * perAppMb + runningDatabases * DATABASE_MEMORY_MB,
+      reservedMB: reserved.appsMB + reserved.databasesMB,
+      appsReservedMB: reserved.appsMB,
+      databasesReservedMB: reserved.databasesMB,
       totalMB: Math.round(os.totalmem() / BYTES_PER_MB),
     },
-    cpu: { reserved: Math.round(runningApps * Number(limits.cpus) * 100) / 100, total: os.availableParallelism() },
+    cpu: { reserved: reserved.appsCpu, total: os.availableParallelism() },
     disk: { dataBytes: dataFolderBytes(), ...diskSpace() },
     backups: { count: backups.length, lastAt: backups[0]?.createdAt.toISOString() ?? null },
   };

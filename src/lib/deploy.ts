@@ -28,7 +28,10 @@ import {
 } from "./docker";
 import { generateDockerfile } from "./dockerfile";
 import { prepareAppUrls } from "./env-urls";
+import { imageTagFor } from "./image-tag";
 import { joinLinkedDatabases } from "./isolation";
+
+export { imageTagFor };
 import { getPanelHost } from "./panel-host";
 import { appNetworkName } from "./network-names";
 import { volumeName } from "./volume-name";
@@ -38,7 +41,6 @@ import { getLimits } from "./runtime-settings";
 import { decryptEnv } from "./secrets";
 
 const MAX_PORT_SCAN = 500;
-const CONTAINER_NAME_PATTERN = /^renver-(.+)-([0-9a-f]{8})$/;
 
 type Log = (line: string) => void;
 
@@ -88,12 +90,6 @@ function prepareBuildContext(project: Project, sourceDir: string, envKeys: strin
     fs.writeFileSync(path.join(sourceDir, name), content);
   }
   return generated.port;
-}
-
-/** Maps `renver-<sub>-<deployId>` back to its image tag `renver/<sub>:<deployId>`. */
-export function imageTagFor(container: string): string | null {
-  const match = CONTAINER_NAME_PATTERN.exec(container);
-  return match ? `renver/${match[1]}:${match[2]}` : null;
 }
 
 export async function removeRelease(container: string): Promise<void> {

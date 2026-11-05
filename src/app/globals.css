@@ -683,3 +683,21 @@ kbd {
 .dns-toggle .chevron[data-open="true"] { transform: rotate(45deg); }
 .dns-done { color: var(--success); font-weight: 500; }
 .badge.ok { color: var(--success); border-color: currentColor; }
+
+/* Round meters on a project card */
+.card-gauges { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding-top: 12px; border-top: 1px solid var(--border); }
+.gauge-stat { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.gauge { position: relative; flex-shrink: 0; display: inline-block; }
+.gauge svg { display: block; transform: rotate(-90deg); }
+.gauge-track { stroke: var(--bg-active); }
+.gauge-fill { transition: stroke-dashoffset 500ms ease, stroke 300ms ease; }
+.gauge-fill.ok { stroke: var(--success); }
+.gauge-fill.warn { stroke: var(--warning); }
+.gauge-fill.bad { stroke: var(--error); }
+.gauge-fill.idle { stroke: var(--text-3); }
+.gauge-center { position: absolute; inset: 0; display: grid; place-items: center; font-size: 10px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.gauge-text { display: grid; gap: 1px; min-width: 0; }
+.gauge-title { font-size: 12px; color: var(--text-2); }
+.gauge-value { font-size: 13px; font-family: var(--font-mono); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.gauge-sub { font-size: 11px; color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+@media (max-width: 480px) { .card-gauges { grid-template-columns: 1fr; } }

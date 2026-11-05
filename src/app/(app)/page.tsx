@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { FrameworkIcon } from "@/components/FrameworkIcon";
 import { ProjectCardMenu } from "@/components/ProjectCardMenu";
+import { ProjectGauges } from "@/components/ProjectGauges";
 import { stackLabel, stackOf } from "@/lib/stack";
 import { GithubIcon, GridIcon, ListIcon, SearchIcon, ZipIcon, BellIcon } from "@/components/shell/icons";
 import { ProjectGridSkeleton, SidePanelSkeleton } from "@/components/Skeleton";
@@ -13,9 +14,12 @@ import type { ProjectListItem } from "@/lib/api";
 import type { Alert } from "@/lib/alerts";
 import type { DeployWithProject } from "@/lib/db";
 import { formatBytes, isBusyStatus, statusLabel, timeAgo } from "@/lib/format";
+import { formatMB, ratioOf } from "@/lib/gauge";
+import type { LiveUsage } from "@/lib/live-usage";
 import type { Usage } from "@/lib/usage";
 
 const USAGE_REFRESH_MS = 15000;
+const LIVE_REFRESH_MS = 6000;
 const DEPLOYS_REFRESH_MS = 5000;
 const WARN_RATIO = 0.75;
 const BAD_RATIO = 0.9;
@@ -28,7 +32,7 @@ function meterClass(ratio: number): string {
   return "meter";
 }
 
-function Meter({ label, value, ratio }: { label: string; value: string; ratio: number }) {
+function Meter({ label, value, ratio, hint }: { label: string; value: string; ratio: number; hint?: string }) {
   const percent = Math.round(Math.min(1, Math.max(0, ratio)) * 100);
   return (
     <div className="meter-row">
@@ -36,18 +40,34 @@ function Meter({ label, value, ratio }: { label: string; value: string; ratio: n
       <div className={meterClass(ratio)} role="progressbar" aria-label={label} aria-valuenow={percent} aria-valuemin={0} aria-valuemax={100}>
         <span style={{ width: `${percent}%` }} />
       </div>
+      {hint && <div className="small muted">{hint}</div>}
     </div>
   );
 }
 
 const ratio = (part: number, whole: number): number => (whole > 0 ? part / whole : 0);
 
-function UsageCard({ usage }: { usage: Usage }) {
+function UsageCard({ usage, live }: { usage: Usage; live: LiveUsage | null }) {
   return (
     <section className="card" aria-labelledby="usage-heading">
       <div className="card-head"><h2 className="h3" id="usage-heading">Usage</h2><span className="small muted">{usage.deploys30d} deploys · 30d</span></div>
       <div style={{ padding: "4px 24px" }}>
-        <Meter label="Memory reserved" value={`${(usage.memory.reservedMB / 1024).toFixed(1)} / ${(usage.memory.totalMB / 1024).toFixed(1)} GB`} ratio={ratio(usage.memory.reservedMB, usage.memory.totalMB)} />
+        <Meter
+          label="Memory reserved"
+          value={`${(usage.memory.reservedMB / 1024).toFixed(1)} / ${(usage.memory.totalMB / 1024).toFixed(1)} GB`}
+          ratio={ratio(usage.memory.reservedMB, usage.memory.totalMB)}
+          hint={`The most the running apps and databases may use, added up: apps ${formatMB(usage.memory.appsReservedMB)} · databases ${formatMB(usage.memory.databasesReservedMB)}.`}
+        />
+        {live ? (
+          <Meter
+            label="Memory in use now"
+            value={`${formatMB(live.memory.usedAppsMB + live.memory.usedDatabasesMB)} / ${formatMB(live.server.memoryTotalMB)}`}
+            ratio={ratioOf(live.memory.usedAppsMB + live.memory.usedDatabasesMB, live.server.memoryTotalMB)}
+            hint={`What they really use: apps ${formatMB(live.memory.usedAppsMB)} · databases ${formatMB(live.memory.usedDatabasesMB)}. The whole server uses ${formatMB(live.server.memoryUsedMB)} including the system.`}
+          />
+        ) : (
+          <div className="meter-row"><div className="meter-head"><span>Memory in use now</span><span className="muted mono">reading…</span></div></div>
+        )}
         <Meter label="CPU reserved" value={`${usage.cpu.reserved.toFixed(1)} / ${usage.cpu.total} cores`} ratio={ratio(usage.cpu.reserved, usage.cpu.total)} />
         <Meter label="Disk used" value={`${formatBytes(usage.disk.totalBytes - usage.disk.freeBytes)} / ${formatBytes(usage.disk.totalBytes)}`} ratio={ratio(usage.disk.totalBytes - usage.disk.freeBytes, usage.disk.totalBytes)} />
         <p className="small" style={{ margin: "4px 0 10px" }}><Link href="/settings#disk-cleanup" className="muted" style={{ textDecoration: "underline" }}>Free up disk space</Link></p>
@@ -109,7 +129,7 @@ function RecentDeployments({ deploys }: { deploys: DeployWithProject[] }) {
   );
 }
 
-function ProjectCard({ project, onChanged }: { project: ProjectListItem; onChanged: () => void }) {
+function ProjectCard({ project, live, onChanged }: { project: ProjectListItem; live: LiveUsage | null; onChanged: () => void }) {
   const source = project.source;
   return (
     <div className="card link project-card">
@@ -131,6 +151,7 @@ function ProjectCard({ project, onChanged }: { project: ProjectListItem; onChang
           <span className="ellipsis">{source ? source.label : stackLabel(stackOf(project.config))}{source?.branch ? ` · ${source.branch}` : ""}</span>
           <span style={{ marginLeft: "auto", flexShrink: 0 }}>{timeAgo(project.createdAt)}</span>
         </div>
+        <ProjectGauges isRunning={project.status === "running"} live={live} project={live?.projects[project.id]} />
       </div>
     </div>
   );
@@ -139,6 +160,7 @@ function ProjectCard({ project, onChanged }: { project: ProjectListItem; onChang
 export default function OverviewPage() {
   const { projects, error, reload } = useProjects();
   const usage = useFetch<Usage>("/api/usage", USAGE_REFRESH_MS).data;
+  const live = useFetch<LiveUsage>("/api/usage/live", LIVE_REFRESH_MS).data ?? null;
   const alerts = useFetch<Alert[]>("/api/alerts", USAGE_REFRESH_MS).data;
   const deploys = useFetch<DeployWithProject[]>(`/api/deployments?limit=${RECENT_DEPLOYS}`, DEPLOYS_REFRESH_MS).data;
   const [query, setQuery] = useState("");
@@ -169,7 +191,7 @@ export default function OverviewPage() {
         <aside className="stack">
           {isSideReady ? (
             <>
-              <UsageCard usage={usage} />
+              <UsageCard usage={usage} live={live} />
               <AlertsCard alerts={alerts} />
               <RecentDeployments deploys={deploys} />
             </>
@@ -191,7 +213,7 @@ export default function OverviewPage() {
           )}
           {projects && projects.length > 0 && visible.length === 0 && <p className="sub">No projects match “{query}”.</p>}
           <div className="cards" style={view === "list" ? { gridTemplateColumns: "1fr" } : undefined}>
-            {visible.map((p) => <ProjectCard key={p.id} project={p} onChanged={() => void reload()} />)}
+            {visible.map((p) => <ProjectCard key={p.id} project={p} live={live} onChanged={() => void reload()} />)}
           </div>
         </section>
       </div>

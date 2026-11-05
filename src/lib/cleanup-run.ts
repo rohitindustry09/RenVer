@@ -1,28 +1,12 @@
-import { execFile } from "node:child_process";
-import { promisify } from "node:util";
 import { listDatabaseRecords, listProjects } from "./db";
 import { DatabaseError } from "./databases";
-import { planCleanup, parseDockerDf, removableVolumes, type CleanupScan } from "./cleanup";
+import { planCleanup, removableVolumes, type CleanupScan } from "./cleanup";
+import { readDockerDf, realDocker, type DockerRunner } from "./docker-df";
 import { volumeName } from "./volume-name";
 
-const run = promisify(execFile);
-const SCAN_TIMEOUT_MS = 60_000;
 const CLEAN_TIMEOUT_MS = 10 * 60_000;
-const MAX_BUFFER = 64 * 1024 * 1024;
 /** Images made within this long are kept, so one that has just been built but not started yet is never removed. */
 const KEEP_RECENT = "1h";
-
-export type DockerRunner = (args: string[], timeoutMs: number) => Promise<string>;
-
-const realDocker: DockerRunner = async (args, timeoutMs) => {
-  try {
-    const { stdout } = await run("docker", args, { timeout: timeoutMs, maxBuffer: MAX_BUFFER, windowsHide: true });
-    return stdout;
-  } catch (error) {
-    const detail = (error as { stderr?: string }).stderr?.trim().split(/\r?\n/).at(-1);
-    throw new DatabaseError(`Docker could not do that: ${detail || (error instanceof Error ? error.message : "unknown error")}`, 502);
-  }
-};
 
 /** Volume names RenVer still needs: every database's data volume and every saved folder of every project. */
 function referencedVolumes(): Set<string> {
@@ -31,12 +15,8 @@ function referencedVolumes(): Set<string> {
   return names;
 }
 
-async function readDf(docker: DockerRunner) {
-  return parseDockerDf(JSON.parse(await docker(["system", "df", "-v", "--format", "json"], SCAN_TIMEOUT_MS)));
-}
-
 export async function scanDisk(docker: DockerRunner = realDocker): Promise<CleanupScan> {
-  return planCleanup(await readDf(docker), referencedVolumes());
+  return planCleanup(await readDockerDf(docker), referencedVolumes());
 }
 
 export interface CleanupRequest {
@@ -75,7 +55,7 @@ export async function runCleanup(request: CleanupRequest, docker: DockerRunner =
     steps.push(await attempt("Unused images", () => docker(["image", "prune", "--all", "--force", "--filter", `until=${KEEP_RECENT}`], CLEAN_TIMEOUT_MS)));
   }
   if (request.volumes.length > 0) {
-    const df = await readDf(docker);
+    const df = await readDockerDf(docker);
     const removable = removableVolumes(df, referencedVolumes());
     const allowed = new Set([...removable.app, ...removable.renver].map((v) => v.name));
     for (const name of new Set(request.volumes)) {
