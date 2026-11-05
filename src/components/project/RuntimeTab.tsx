@@ -82,11 +82,12 @@ export function RuntimeTab({ project, onChanged }: Props) {
         {message && <p className={`notice${message.ok ? "" : " error"}`} style={{ margin: "0 24px 16px" }} role="status">{message.text}</p>}
       </section>
 
-      <RuntimeResources key={JSON.stringify(project.config.limits ?? {})} project={project} onSaved={onChanged} />
+      {/* Each key starts with the card's own name: siblings that share a key (two empty lists, both "[]") make React duplicate them. */}
+      <RuntimeResources key={`limits:${JSON.stringify(project.config.limits ?? {})}`} project={project} onSaved={onChanged} />
 
-      <StorageCard key={JSON.stringify(project.config.storage ?? [])} project={project} onSaved={onChanged} />
+      <StorageCard key={`storage:${JSON.stringify(project.config.storage ?? [])}`} project={project} onSaved={onChanged} />
 
-      <DnsCard key={JSON.stringify(project.config.dns ?? [])} project={project} onSaved={onChanged} />
+      <DnsCard key={`dns:${JSON.stringify(project.config.dns ?? [])}`} project={project} onSaved={onChanged} />
       <RuntimeLogs projectId={project.id} canRead={hasContainer} />
     </div>
   );
