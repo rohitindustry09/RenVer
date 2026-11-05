@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { ActivityCard } from "@/components/ActivityCard";
 import { BackupsCard } from "@/components/BackupsCard";
+import { CleanupCard } from "@/components/CleanupCard";
 import { GithubCard } from "@/components/GithubCard";
 import { NotificationsCard } from "@/components/NotificationsCard";
 import { PanelAddressCard } from "@/components/PanelAddressCard";
@@ -119,6 +120,8 @@ export default function SettingsPage() {
         <GithubCard />
 
         <BackupsCard />
+
+        <CleanupCard />
 
         <NotificationsCard />
 

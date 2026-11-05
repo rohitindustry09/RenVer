@@ -127,6 +127,8 @@ With PM2 set the environment variables (`RENVER_MODE`, `RENVER_ADMIN_PASSWORD`, 
 
 ## Troubleshooting
 
+- *The disk is filling up:* Settings → **Disk cleanup** shows what Docker is keeping that nothing uses (old build cache, unused images, leftover volumes), with sizes and a Details button for each part. The first two are safe to remove and are ticked for you; volumes can hold data, so they are never ticked for you and need you to type "delete". Running apps, databases, backups and saved folders are never touched. New containers also keep their logs to 30 MB, so logs cannot fill the disk.
+
 - *A page says the app is not responding:* open the project → Runtime for its logs, memory use and a restart button.
 - *Out of memory:* lower the memory per app in Settings, or give one project its own limit under Runtime.
 - *Something went wrong after a change:* Deployments → open an older deployment that was live → "Redeploy this version".

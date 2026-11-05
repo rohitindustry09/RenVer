@@ -50,6 +50,7 @@ function UsageCard({ usage }: { usage: Usage }) {
         <Meter label="Memory reserved" value={`${(usage.memory.reservedMB / 1024).toFixed(1)} / ${(usage.memory.totalMB / 1024).toFixed(1)} GB`} ratio={ratio(usage.memory.reservedMB, usage.memory.totalMB)} />
         <Meter label="CPU reserved" value={`${usage.cpu.reserved.toFixed(1)} / ${usage.cpu.total} cores`} ratio={ratio(usage.cpu.reserved, usage.cpu.total)} />
         <Meter label="Disk used" value={`${formatBytes(usage.disk.totalBytes - usage.disk.freeBytes)} / ${formatBytes(usage.disk.totalBytes)}`} ratio={ratio(usage.disk.totalBytes - usage.disk.freeBytes, usage.disk.totalBytes)} />
+        <p className="small" style={{ margin: "4px 0 10px" }}><Link href="/settings#disk-cleanup" className="muted" style={{ textDecoration: "underline" }}>Free up disk space</Link></p>
         <div className="meter-row">
           <div className="meter-head"><span>Projects running</span><span className="muted mono">{usage.projects.running} / {usage.projects.total}</span></div>
           <div className="meter-head"><span>Databases running</span><span className="muted mono">{usage.databases.running} / {usage.databases.total}</span></div>

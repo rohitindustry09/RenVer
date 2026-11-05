@@ -50,7 +50,7 @@ describe.skipIf(!available)("reading a real PostgreSQL database", () => {
   }, 120_000);
 
   afterAll(() => {
-    docker("rm", "-f", container);
+    docker("rm", "-f", "-v", container);
   });
 
   it("lists the tables, with capitals intact", async () => {

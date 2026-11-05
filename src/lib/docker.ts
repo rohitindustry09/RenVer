@@ -104,6 +104,7 @@ export async function dockerRun(opts: {
     "--name", opts.name,
     "--label", `renver.project=${opts.projectId}`,
     "--restart", "unless-stopped",
+    "--log-opt", "max-size=10m", "--log-opt", "max-file=3",
     "--memory", limits.memory,
     "--memory-swap", limits.memory,
     "--cpus", limits.cpus,
@@ -179,6 +180,7 @@ export async function dockerRunDatabase(opts: {
     "--label", "renver.kind=database",
     "--label", `renver.database=${opts.databaseId}`,
     "--restart", "unless-stopped",
+    "--log-opt", "max-size=10m", "--log-opt", "max-file=3",
     "--memory", DATABASE_MEMORY,
     "--pids-limit", PIDS_LIMIT,
     "--network", opts.network ?? APP_NETWORK,
@@ -263,7 +265,7 @@ export async function dockerStats(name: string): Promise<ContainerStats | null> 
 }
 
 export async function dockerRemove(name: string): Promise<void> {
-  await runStreaming(["rm", "-f", name], {});
+  await runStreaming(["rm", "-f", "-v", name], {});
 }
 
 const BUILD_CACHE_KEEP = "168h";

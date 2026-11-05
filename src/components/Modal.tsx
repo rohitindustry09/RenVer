@@ -23,6 +23,13 @@ export function Modal({ title, onClose, wide = false, children }: Props) {
   const dialogRef = useRef<HTMLDivElement>(null);
   // Portals need the document, which the server render does not have.
   const isClient = useSyncExternalStore(subscribeNothing, () => true, () => false);
+  // The newest onClose, without making the effect below depend on it. Parents often pass a new function on every
+  // render (the page refreshes every few seconds); re-running the effect then moved focus back to the opening button
+  // and closed any open dropdown inside the popup.
+  const onCloseRef = useRef(onClose);
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  });
 
   useEffect(() => {
     if (!isClient) return;
@@ -32,7 +39,7 @@ export function Modal({ title, onClose, wide = false, children }: Props) {
 
     const onKey = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
-        onClose();
+        onCloseRef.current();
         return;
       }
       if (event.key !== "Tab" || !dialog) return;
@@ -60,7 +67,7 @@ export function Modal({ title, onClose, wide = false, children }: Props) {
       document.body.style.overflow = previousOverflow;
       if (opener && document.contains(opener)) opener.focus();
     };
-  }, [isClient, onClose]);
+  }, [isClient]);
 
   if (!isClient) return null;
 

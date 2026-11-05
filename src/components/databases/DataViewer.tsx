@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { api } from "@/lib/client-api";
 import type { DataPage, DataTable } from "@/lib/data-view";
 import { Modal } from "../Modal";
+import { Select } from "../Select";
 
 interface Props {
   databaseId: string;
@@ -80,23 +81,22 @@ export function DataViewer({ databaseId, databaseName, onClose }: Props) {
 
         {tables && tables.length > 0 && (
           <>
-            <label className="field">
+            <div className="field">
               <span className="label">Table</span>
-              <select
-                className="input"
+              <Select
                 value={selected ? key(selected) : ""}
-                onChange={(e) => {
-                  const next = tables.find((t) => key(t) === e.target.value);
+                ariaLabel="Table to show"
+                onChange={(value) => {
+                  const next = tables.find((t) => key(t) === value);
                   if (next) choose(next);
                 }}
-              >
-                {tables.map((t) => (
-                  <option key={key(t)} value={key(t)}>
-                    {label(t)}{t.estimate > 0 ? ` (about ${t.estimate.toLocaleString()} rows)` : ""}
-                  </option>
-                ))}
-              </select>
-            </label>
+                options={tables.map((t) => ({
+                  value: key(t),
+                  label: label(t),
+                  hint: t.estimate > 0 ? `about ${t.estimate.toLocaleString()} rows` : undefined,
+                }))}
+              />
+            </div>
 
             {isLoading && <p className="small muted">Loading rows…</p>}
 
