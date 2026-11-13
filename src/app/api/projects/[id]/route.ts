@@ -1,8 +1,9 @@
 import { audited } from "@/lib/audited";
-import { fail, ok, publicProject } from "@/lib/api";
+import { fail, failFrom, ok, publicProject } from "@/lib/api";
 import { config } from "@/lib/config";
 import { serverAddresses } from "@/lib/domains";
-import { deleteProject, getProject, listDeploys, listProjectHosts } from "@/lib/db";
+import { deleteProject, getProject, listDeploys, listProjectHosts, updateProjectName } from "@/lib/db";
+import { validateProjectName } from "@/lib/project-name";
 import { removeRelease, syncProxy } from "@/lib/deploy";
 import { dockerRemoveNetwork, dockerRemoveVolume } from "@/lib/docker";
 import { volumeName } from "@/lib/volume-name";
@@ -40,6 +41,22 @@ export async function GET(_request: Request, { params }: Context) {
   });
 }
 
+/** Body: `{ "name": "New name" }`. Only the shown name changes; the address, containers and data stay as they are. */
+async function handlePATCH(request: Request, { params }: Context) {
+  try {
+    const { id } = await params;
+    const project = getProject(id);
+    if (!project) return fail("Project not found.", 404);
+    const body = (await request.json()) as { name?: unknown };
+    const checked = validateProjectName(typeof body.name === "string" ? body.name : "");
+    if (!checked.ok) return fail(checked.error, 400);
+    updateProjectName(id, checked.value);
+    return ok({ name: checked.value });
+  } catch (error) {
+    return failFrom(error);
+  }
+}
+
 async function handleDELETE(_request: Request, { params }: Context) {
   try {
     const { id } = await params;
@@ -59,3 +76,5 @@ async function handleDELETE(_request: Request, { params }: Context) {
 }
 
 export const DELETE = audited("project.delete", handleDELETE);
+
+export const PATCH = audited("project.rename", handlePATCH, { detail: (b) => (typeof b.name === "string" ? b.name.slice(0, 80) : undefined) });

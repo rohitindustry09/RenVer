@@ -495,6 +495,11 @@ export function removeProjectHost(projectId: string, host: string): void {
   }
 }
 
+/** Changes the name shown for a project. Its container and image names use a separate internal id, so nothing running is touched. */
+export function updateProjectName(id: string, name: string): void {
+  open().prepare("UPDATE projects SET name = ? WHERE id = ?").run(name, id);
+}
+
 export function setPrimaryHost(projectId: string, host: string): void {
   open().prepare("UPDATE projects SET primary_host = ? WHERE id = ?").run(host, projectId);
 }

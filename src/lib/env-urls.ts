@@ -25,6 +25,26 @@ export function normalizeAppUrl(value: string): string {
 export const normalizeEnvValue = (key: string, value: string): string => (isAppUrlKey(key) ? normalizeAppUrl(value) : value);
 
 /**
+ * After a project's address changes, address variables that pointed at the old one (SHOPIFY_APP_URL and friends) are pointed
+ * at the new one. Only an exact match on the old host is changed; the scheme and any path are kept. Pure.
+ */
+export function retargetAppUrls(env: Record<string, string>, oldHost: string, newHost: string): { env: Record<string, string>; changed: string[] } {
+  const next: Record<string, string> = {};
+  const changed: string[] = [];
+  const old = oldHost.toLowerCase();
+  for (const [key, value] of Object.entries(env)) {
+    const match = isAppUrlKey(key) ? /^(https?:\/\/)([^/:?#]+)(:\d+)?(\/.*)?$/i.exec(value.trim()) : null;
+    if (match && match[2]!.toLowerCase() === old) {
+      next[key] = `${match[1]}${newHost}${match[3] ?? ""}${match[4] ?? ""}`.replace(/\/+$/, "");
+      changed.push(key);
+    } else {
+      next[key] = value;
+    }
+  }
+  return { env: next, changed };
+}
+
+/**
  * The variables a deploy should really use: address variables made complete, and a Shopify app with no SHOPIFY_APP_URL
  * gets the project's own address. `notes` say what changed, for the deploy log. Never prints values other than the address.
  */

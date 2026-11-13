@@ -16,6 +16,7 @@ import {
   listProjectHosts,
   markDomainVerified,
   removeProjectHost,
+  setPrimaryHost,
   setSetting,
   type DomainRecord,
 } from "./db";
@@ -215,6 +216,28 @@ export function addHostToProject(projectId: string, domainId: string, label: str
   if (!getProject(projectId)) throw new DomainError("Project not found.", 404);
   const { domain, host } = planProjectHost(domainId, label);
   addProjectHost({ host, projectId, domainId: domain.id });
+  return host;
+}
+
+/**
+ * Swaps one of a project's addresses for another: the new one is added first (it must be free, on a verified domain), takes
+ * over as the main address if the old one was, and then the old one is removed. If anything fails the project keeps what it had.
+ */
+export function replaceProjectHost(projectId: string, oldHost: string, domainId: string, label: string): string {
+  const project = getProject(projectId);
+  if (!project) throw new DomainError("Project not found.", 404);
+  if (!listProjectHosts(projectId).some((h) => h.host === oldHost)) throw new DomainError("That address is not on this project.", 404);
+
+  const { domain, host } = planProjectHost(domainId, label);
+  addProjectHost({ host, projectId, domainId: domain.id });
+  try {
+    if (project.primaryHost === oldHost) setPrimaryHost(projectId, host);
+    removeProjectHost(projectId, oldHost);
+  } catch (error) {
+    removeProjectHost(projectId, host);
+    setPrimaryHost(projectId, project.primaryHost);
+    throw error;
+  }
   return host;
 }
 

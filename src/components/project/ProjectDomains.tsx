@@ -3,6 +3,7 @@
 import { Fragment, useEffect, useState } from "react";
 import { ConfirmDelete } from "@/components/ConfirmDelete";
 import { HostPicker } from "@/components/domains/HostPicker";
+import { ChangeAddressDialog, type AddressChange } from "./ChangeAddressDialog";
 import { isUsable, type DomainsPayload } from "@/components/domains/types";
 import { useFetch } from "@/hooks/useFetch";
 import { useHostCheck } from "@/hooks/useHostCheck";
@@ -24,6 +25,8 @@ export function ProjectDomains({ projectId, primaryHost, hosts, onChanged }: Pro
   const [busy, setBusy] = useState<"add" | string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [removingHost, setRemovingHost] = useState<string | null>(null);
+  const [changingHost, setChangingHost] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
 
   useEffect(() => {
     if (domainId || !domainData) return;
@@ -67,6 +70,16 @@ export function ProjectDomains({ projectId, primaryHost, hosts, onChanged }: Pro
     }
   };
 
+  const changed = (change: AddressChange) => {
+    setChangingHost(null);
+    setNotice(
+      `The address is now ${change.host}.` +
+        (change.updatedEnv.length > 0 ? ` ${change.updatedEnv.join(", ")} was updated to match. Redeploy so the app uses it, and update the address wherever the app was registered (for example the Shopify Partner dashboard).` : ""),
+    );
+    onChanged();
+    void reloadDomains();
+  };
+
   return (
     <section className="card" aria-labelledby="project-domains-heading">
       <div className="card-head">
@@ -82,6 +95,9 @@ export function ProjectDomains({ projectId, primaryHost, hosts, onChanged }: Pro
               </div>
               <div className="row-end">
                 {host === primaryHost && <span className="badge">Primary</span>}
+                <button type="button" className="btn sm" disabled={busy !== null || !domainData} onClick={() => setChangingHost(host)}>
+                  Change
+                </button>
                 <button
                   type="button"
                   className="btn sm danger"
@@ -108,6 +124,10 @@ export function ProjectDomains({ projectId, primaryHost, hosts, onChanged }: Pro
           </Fragment>
         ))}
       </ul>
+      {notice && <p className="notice" role="status" style={{ margin: "12px 24px" }}>{notice}</p>}
+      {changingHost && domainData && (
+        <ChangeAddressDialog projectId={projectId} oldHost={changingHost} domains={domainData.domains} onDone={changed} onClose={() => setChangingHost(null)} />
+      )}
       <div className="card-pad stack-sm" style={{ borderTop: "1px solid var(--border)" }}>
         <span className="label" style={{ fontWeight: 500 }}>Add an address</span>
         {domainData && (

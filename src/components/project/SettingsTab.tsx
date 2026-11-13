@@ -11,6 +11,7 @@ import { AutoDeployCard } from "./AutoDeployCard";
 import { EnvVarList } from "./EnvVarList";
 import { PauseCard } from "./PauseCard";
 import { ProjectDomains } from "./ProjectDomains";
+import { ProjectNameCard } from "./ProjectNameCard";
 import type { ProjectDetail } from "./types";
 
 interface Props {
@@ -78,6 +79,8 @@ export function SettingsTab({ detail, onRedeploy, onChanged }: Props) {
 
   return (
     <div className="stack">
+      <ProjectNameCard key={project.name} project={project} onSaved={onChanged} />
+
       <ProjectDomains projectId={project.id} primaryHost={project.primaryHost} hosts={detail.hosts} onChanged={onChanged} />
 
       <section className="card" aria-labelledby="env-heading">

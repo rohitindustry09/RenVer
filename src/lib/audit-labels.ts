@@ -20,6 +20,8 @@ export const AUDIT_LABELS: Record<string, string> = {
   "project.pull": "Pulled the latest code from GitHub and deployed",
   "project.dns": "Changed a project's DNS servers",
   "project.limits": "Changed a project's limits",
+  "project.rename": "Renamed a project",
+  "project.host.change": "Changed a project's address",
   "project.host.add": "Added an address to a project",
   "project.host.remove": "Removed an address from a project",
   "domain.add": "Added a domain",

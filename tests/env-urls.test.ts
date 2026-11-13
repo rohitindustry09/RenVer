@@ -58,3 +58,24 @@ describe("prepareAppUrls", () => {
     expect(prepareAppUrls({ PORT: "3000" }, "a.example.com")).toEqual({ env: { PORT: "3000" }, notes: [] });
   });
 });
+
+describe("retargetAppUrls", () => {
+  it("points address variables that held the old address at the new one, keeping scheme, port and path", async () => {
+    const { retargetAppUrls } = await import("@/lib/env-urls");
+    const result = retargetAppUrls(
+      { SHOPIFY_APP_URL: "https://old.example.com", NEXTAUTH_URL: "http://old.example.com:3000/app/", SITE_URL: "https://OLD.example.com/" },
+      "old.example.com",
+      "new.example.com",
+    );
+    expect(result.env).toEqual({ SHOPIFY_APP_URL: "https://new.example.com", NEXTAUTH_URL: "http://new.example.com:3000/app", SITE_URL: "https://new.example.com" });
+    expect(result.changed).toEqual(["SHOPIFY_APP_URL", "NEXTAUTH_URL", "SITE_URL"]);
+  });
+
+  it("leaves other variables and other hosts alone", async () => {
+    const { retargetAppUrls } = await import("@/lib/env-urls");
+    const env = { SHOPIFY_APP_URL: "https://elsewhere.example.com", DATABASE_URL: "https://old.example.com/db", API_KEY: "old.example.com", PUBLIC_URL: "https://notold.example.com" };
+    const result = retargetAppUrls(env, "old.example.com", "new.example.com");
+    expect(result.env).toEqual(env);
+    expect(result.changed).toEqual([]);
+  });
+});
