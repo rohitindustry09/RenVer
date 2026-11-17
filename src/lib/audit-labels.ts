@@ -11,6 +11,7 @@ export const AUDIT_LABELS: Record<string, string> = {
   "source.upload": "Uploaded a zip",
   "source.import": "Imported from GitHub",
   "project.create": "Created a project",
+  "website.create": "Created a WordPress website",
   "project.delete": "Deleted a project",
   "project.deploy": "Deployed a project",
   "project.redeploy": "Redeployed a project",

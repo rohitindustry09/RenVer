@@ -3,7 +3,7 @@ import type { Deploy } from "@/lib/db";
 
 /** Where a deployment's code came from. For GitHub: the repository, branch and commit. */
 export interface DeploySource {
-  source: "zip" | "github";
+  source: "zip" | "github" | "template";
   label: string;
   branch: string | null;
   commit: string | null;

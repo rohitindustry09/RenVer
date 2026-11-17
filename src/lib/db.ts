@@ -19,6 +19,8 @@ export interface ProjectConfig {
   storage?: string[];
   /** DNS servers this app's container uses instead of the server's own; empty or missing means the server's. */
   dns?: string[];
+  /** Set when RenVer built the project from one of its own templates (see wordpress-site.ts), not from the person's code. */
+  template?: "wordpress";
   kind: "server" | "static";
   installCommand: string | null;
   buildCommand: string | null;

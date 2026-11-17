@@ -115,6 +115,17 @@ pm2 startup && pm2 save            # start at boot
 
 With PM2 set the environment variables (`RENVER_MODE`, `RENVER_ADMIN_PASSWORD`, …) in `.env` in the project folder, which is the one settings file RenVer reads.
 
+## WordPress websites
+
+On **New Project** choose **Create a WordPress website**. Give it a title, an address and an admin username, email and password. RenVer starts a MariaDB database, builds WordPress from the official image, installs it with your admin account, and only then marks the deploy live. You land on a site you can sign in to at `/wp-admin/`.
+
+Good to know:
+
+- WordPress's files (themes, plugins, uploads) live in a saved folder. RenVer backups include the database, **not** that folder.
+- The admin password is kept encrypted only until setup finishes, then removed. If setup fails, press Redeploy and it tries again.
+- RenVer does not send email, so WordPress password-reset mails need an SMTP plugin.
+- Deleting the website leaves its database; remove it on the Databases page.
+
 ## 3. Before you rely on it
 
 - **Test one real domain first.** Deploy a small app on a spare subdomain and check that `https://` works and the certificate is valid. Everything on `*.localhost` runs without certificates, so only a real domain proves this part.

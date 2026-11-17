@@ -29,6 +29,8 @@ import {
 import { generateDockerfile } from "./dockerfile";
 import { prepareAppUrls } from "./env-urls";
 import { imageTagFor } from "./image-tag";
+import { afterStart } from "./deploy-hooks";
+import { templateEnv } from "./wordpress-env";
 import { joinLinkedDatabases } from "./isolation";
 
 export { imageTagFor };
@@ -131,7 +133,7 @@ async function buildAndStart(
   const container = `renver-${project.subdomain}-${deployId}`;
   const tag = `renver/${project.subdomain}:${deployId}`;
   const prepared = prepareAppUrls(decryptEnv(project.envEncrypted), project.primaryHost);
-  const env = prepared.env;
+  const env = templateEnv(prepared.env, project.config.template, listProjectHosts(project.id).map((h) => h.host));
   for (const note of prepared.notes) log(note);
   const containerPort = prepareBuildContext(project, sourceDir, Object.keys(env));
 
@@ -163,6 +165,7 @@ async function buildAndStart(
 
   log("Waiting for the app to respond...");
   await waitHealthy(hostPort);
+  await afterStart(project, hostPort, log);
   return { container, hostPort };
 }
 

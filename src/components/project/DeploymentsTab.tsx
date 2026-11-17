@@ -83,6 +83,8 @@ export function DeploymentsTab({ deploys, activeId, onToggle, onRollback, isBusy
                       ) : (
                         <>Code from GitHub {deploy.source.label}. The commit was not saved for this older deployment.</>
                       )
+                    ) : deploy.source.source === "template" ? (
+                      <>Made from RenVer&apos;s {deploy.source.label} template.</>
                     ) : (
                       <>Code from the uploaded file {deploy.source.label}.</>
                     )}

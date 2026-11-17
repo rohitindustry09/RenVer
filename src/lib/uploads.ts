@@ -9,7 +9,7 @@ export const MAX_UPLOAD_BYTES = 200 * 1024 * 1024;
 const UPLOAD_ID_PATTERN = /^[0-9a-f-]{36}$/;
 
 export interface UploadMeta {
-  source: "zip" | "github";
+  source: "zip" | "github" | "template";
   label: string;
   branch: string | null;
   /** For a GitHub import: the full commit id that was fetched, and its first message line. */

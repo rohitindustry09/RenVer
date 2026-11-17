@@ -9,10 +9,13 @@ interface Props {
   deployId: string;
   projectId: string;
   url: string;
+  /** For a WordPress website: where its admin screen is, and who signs in there. */
+  adminUrl?: string;
+  adminUser?: string;
   onBack: () => void;
 }
 
-export function DeployProgress({ deployId, projectId, url, onBack }: Props) {
+export function DeployProgress({ deployId, projectId, url, adminUrl, adminUser, onBack }: Props) {
   const [result, setResult] = useState<Deploy | null>(null);
   const isLive = result?.status === "live";
   const isFailed = result?.status === "failed";
@@ -22,10 +25,12 @@ export function DeployProgress({ deployId, projectId, url, onBack }: Props) {
       {isLive && (
         <div className="card success-card">
           <div className="success-mark" aria-hidden="true">✓</div>
-          <h2 className="h2">Your project is live</h2>
+          <h2 className="h2">{adminUrl ? "Your website is live" : "Your project is live"}</h2>
           <a className="mono muted" href={url} target="_blank" rel="noopener noreferrer">{url}</a>
+          {adminUser && <p className="small muted">Sign in to the admin as <span className="mono">{adminUser}</span> with the password you chose.</p>}
           <div className="toolbar">
             <a className="btn primary" href={url} target="_blank" rel="noopener noreferrer">Visit</a>
+            {adminUrl && <a className="btn" href={adminUrl} target="_blank" rel="noopener noreferrer">Open WordPress admin</a>}
             <Link className="btn" href={`/projects/${projectId}`}>Go to project</Link>
           </div>
         </div>

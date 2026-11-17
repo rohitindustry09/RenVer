@@ -298,7 +298,8 @@ export async function waitHealthy(port: number, timeoutMs = config.healthTimeout
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
     try {
-      await fetch(`http://127.0.0.1:${port}/`, { signal: AbortSignal.timeout(HEALTH_REQUEST_TIMEOUT_MS) });
+      // Any answer means it is up. Redirects are not followed: a site may redirect to its own public address, which is not reachable from here.
+      await fetch(`http://127.0.0.1:${port}/`, { redirect: "manual", signal: AbortSignal.timeout(HEALTH_REQUEST_TIMEOUT_MS) });
       return;
     } catch {
       await new Promise((r) => setTimeout(r, HEALTH_INTERVAL_MS));

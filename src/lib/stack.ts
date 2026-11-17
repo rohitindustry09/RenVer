@@ -1,12 +1,12 @@
 /** What a project is built with, for showing its logo and name. It never changes how the project is built or run. */
 export type Stack =
   | "nextjs" | "nuxt" | "angular" | "astro" | "svelte" | "remix" | "react" | "vue"
-  | "nestjs" | "express" | "fastify" | "vite" | "node" | "html" | "docker" | "shopify" | "unknown";
+  | "nestjs" | "express" | "fastify" | "vite" | "node" | "html" | "docker" | "shopify" | "wordpress" | "unknown";
 
 const STACK_LABELS: Record<Stack, string> = {
   nextjs: "Next.js", nuxt: "Nuxt", angular: "Angular", astro: "Astro", svelte: "Svelte", remix: "Remix",
   react: "React", vue: "Vue", nestjs: "NestJS", express: "Express", fastify: "Fastify", vite: "Vite",
-  node: "Node.js", html: "Static HTML", docker: "Docker", shopify: "Shopify app", unknown: "Unknown",
+  node: "Node.js", html: "Static HTML", docker: "Docker", shopify: "Shopify app", wordpress: "WordPress", unknown: "Unknown",
 };
 
 /** Package that proves a stack, most specific first: a Next.js app also depends on React, so Next.js must win. */

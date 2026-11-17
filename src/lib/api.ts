@@ -38,7 +38,7 @@ export function publicDatabase(record: DatabaseRecord): PublicDatabase {
 
 /** A project as the Overview shows it: the project plus where it came from and how its last deploy went. */
 export interface ProjectListItem extends PublicProject {
-  source: { source: "zip" | "github"; label: string; branch: string | null } | null;
+  source: { source: "zip" | "github" | "template"; label: string; branch: string | null } | null;
   lastDeploy: { id: string; status: string; createdAt: string; finishedAt: string | null } | null;
 }
 
