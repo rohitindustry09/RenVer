@@ -20,6 +20,9 @@ export interface CaddyOptions {
 interface CaddyHandler {
   handler: string;
   upstreams?: { dial: string }[];
+  encodings?: Record<string, object>;
+  prefer?: string[];
+  match?: { headers: Record<string, string[]> };
   status_code?: number;
   body?: string;
 }
@@ -47,10 +50,24 @@ export interface CaddyConfig {
 const LOOPBACK = "127.0.0.1";
 export const CADDY_ADMIN_ADDRESS = "127.0.0.1:2019";
 
+/** Text-like answers only: compressing images, video or event streams would cost CPU or break streaming for nothing. */
+const COMPRESSIBLE = [
+  "text/html*", "text/css*", "text/plain*", "text/xml*", "text/javascript*", "application/javascript*",
+  "application/json*", "application/xml*", "application/manifest+json*", "image/svg+xml*",
+];
+
+const compression: CaddyHandler = {
+  handler: "encode",
+  encodings: { zstd: {}, gzip: {} },
+  prefer: ["zstd", "gzip"],
+  match: { headers: { "Content-Type": COMPRESSIBLE } },
+};
+
+/** The last handler is always the one that answers (the app), so the compressor sits in front of it. */
 function proxyRoute({ hosts, port }: AppRoute): CaddyRoute {
   return {
     match: [{ host: hosts }],
-    handle: [{ handler: "reverse_proxy", upstreams: [{ dial: `${LOOPBACK}:${port}` }] }],
+    handle: [compression, { handler: "reverse_proxy", upstreams: [{ dial: `${LOOPBACK}:${port}` }] }],
   };
 }
 

@@ -14,8 +14,8 @@ describe("buildCaddyConfig routes", () => {
     const routes = main(local).routes;
     expect(routes).toHaveLength(3);
     expect(routes[0]!.match![0]!.host).toEqual(["shop1.localhost"]);
-    expect(routes[0]!.handle[0]!.upstreams![0]!.dial).toBe("127.0.0.1:4001");
-    expect(routes[1]!.handle[0]!.upstreams![0]!.dial).toBe("127.0.0.1:4002");
+    expect(routes[0]!.handle.at(-1)!.upstreams![0]!.dial).toBe("127.0.0.1:4001");
+    expect(routes[1]!.handle.at(-1)!.upstreams![0]!.dial).toBe("127.0.0.1:4002");
   });
 
   it("sends several hostnames of one app to the same upstream", () => {
@@ -32,7 +32,18 @@ describe("buildCaddyConfig routes", () => {
   it("puts the panel route first when given", () => {
     const first = main(local, { panel: { hosts: ["panel.localhost"], port: 3000 } }).routes[0]!;
     expect(first.match![0]!.host).toEqual(["panel.localhost"]);
-    expect(first.handle[0]!.upstreams![0]!.dial).toBe("127.0.0.1:3000");
+    expect(first.handle.at(-1)!.upstreams![0]!.dial).toBe("127.0.0.1:3000");
+  });
+
+  it("compresses text answers in front of every app, but not images or event streams", () => {
+    const route = main(local).routes[0]!;
+    const [first, second] = route.handle;
+    expect(first!.handler).toBe("encode");
+    expect(first!.prefer).toEqual(["zstd", "gzip"]);
+    const types = first!.match!.headers["Content-Type"]!;
+    expect(types).toContain("text/html*");
+    expect(types.some((t) => /event-stream|^image\/(png|jpeg)|^video/.test(t))).toBe(false);
+    expect(second!.handler).toBe("reverse_proxy");
   });
 
   it("skips apps that have no hostnames", () => {
