@@ -54,7 +54,7 @@ export function createWordPressSite(input: WordPressInput, where: { domainId: st
     domainId: domain.id,
     envEncrypted,
     config: {
-      framework: "docker",
+      framework: "dockerfile",
       stack: "wordpress",
       template: "wordpress",
       storage: [WORDPRESS_DATA_DIR],
