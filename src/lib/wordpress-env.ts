@@ -52,3 +52,14 @@ export function wordpressEnv(db: { host: string; port: number; database: string;
 export function templateEnv(env: Record<string, string>, template: string | undefined, hosts: readonly string[]): Record<string, string> {
   return template === "wordpress" ? { ...env, RENVER_HOSTS: hosts.join(",") } : env;
 }
+
+/**
+ * The official WordPress image starts as root, copies WordPress into the saved folder, then fixes owners and permissions,
+ * and Apache later signals its workers. Without these three it cannot finish copying and never answers.
+ * Everything else stays dropped. Nothing is added for other projects.
+ */
+export const WORDPRESS_CAPABILITIES = ["DAC_OVERRIDE", "FOWNER", "KILL"] as const;
+
+export function templateCapabilities(template: string | undefined): readonly string[] {
+  return template === "wordpress" ? WORDPRESS_CAPABILITIES : [];
+}

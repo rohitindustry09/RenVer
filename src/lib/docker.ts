@@ -95,6 +95,8 @@ export async function dockerRun(opts: {
   volumes?: { name: string; path: string }[];
   /** DNS servers for this container instead of the server's own. */
   dns?: string[];
+  /** Capabilities kept on top of the usual few, for images that set up their own files as root (see wordpress-env.ts). */
+  extraCapabilities?: readonly string[];
   onLine: LineHandler;
 }): Promise<void> {
   const env = validEnv(opts.runtimeEnv);
@@ -112,7 +114,7 @@ export async function dockerRun(opts: {
     "--network", opts.network ?? APP_NETWORK,
     "--security-opt", "no-new-privileges",
     "--cap-drop", "ALL",
-    ...KEPT_CAPABILITIES.flatMap((cap) => ["--cap-add", cap]),
+    ...[...KEPT_CAPABILITIES, ...(opts.extraCapabilities ?? [])].flatMap((cap) => ["--cap-add", cap]),
     ...(opts.volumes ?? []).flatMap((v) => ["-v", `${v.name}:${v.path}`]),
     ...(opts.dns ?? []).flatMap((server) => ["--dns", server]),
     "-p", `${config.publishApps ? "0.0.0.0" : "127.0.0.1"}:${opts.hostPort}:${opts.containerPort}`,

@@ -2,7 +2,7 @@ import http from "node:http";
 import type { AddressInfo } from "node:net";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { generateAdminPassword, validateWordPressInput } from "@/lib/wordpress-input";
-import { templateEnv, wordpressDockerfile, wordpressEnv, WORDPRESS_CONFIG_EXTRA } from "@/lib/wordpress-env";
+import { templateCapabilities, templateEnv, wordpressDockerfile, wordpressEnv, WORDPRESS_CONFIG_EXTRA } from "@/lib/wordpress-env";
 import { buildInstallBody, httpSend, installWordPress, interpretInstallPage, type InstallRequest, type Sender } from "@/lib/wordpress-install";
 
 const GOOD = { title: "  My   Shop ", adminUser: "boss", adminEmail: "boss@example.com", adminPassword: "Tr0ub4dour-Horse-Battery", language: "hi_IN", indexable: false };
@@ -69,6 +69,13 @@ describe("wordpress-env", () => {
     expect(templateEnv(base, "wordpress", ["a.com", "www.a.com"])).toEqual({ A: "1", RENVER_HOSTS: "a.com,www.a.com" });
     expect(templateEnv(base, undefined, ["a.com"])).toBe(base);
     expect(base).toEqual({ A: "1" });
+  });
+});
+
+describe("templateCapabilities", () => {
+  it("gives WordPress what its image needs and nothing to other projects", () => {
+    expect(templateCapabilities("wordpress")).toEqual(["DAC_OVERRIDE", "FOWNER", "KILL"]);
+    expect(templateCapabilities(undefined)).toEqual([]);
   });
 });
 

@@ -30,7 +30,7 @@ import { generateDockerfile } from "./dockerfile";
 import { prepareAppUrls } from "./env-urls";
 import { imageTagFor } from "./image-tag";
 import { afterStart } from "./deploy-hooks";
-import { templateEnv } from "./wordpress-env";
+import { templateCapabilities, templateEnv } from "./wordpress-env";
 import { joinLinkedDatabases } from "./isolation";
 
 export { imageTagFor };
@@ -158,6 +158,7 @@ async function buildAndStart(
     network,
     volumes: (project.config.storage ?? []).map((path) => ({ name: volumeName(project.id, path), path })),
     dns: project.config.dns,
+    extraCapabilities: templateCapabilities(project.config.template),
     onLine: log,
   });
   await joinLinkedDatabases(project.id, container, log);
