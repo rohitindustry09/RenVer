@@ -62,6 +62,12 @@ async function check(values) {
   items.push({ ok: docker.status === 0, label: "Docker running", hint: "Start Docker (Docker Desktop on Windows/Mac, or: sudo systemctl start docker)." });
   const caddy = run("caddy", ["version"]);
   items.push({ ok: caddy.status === 0 ? true : production ? false : "warn", label: "Caddy installed", hint: "Needed for domains and HTTPS. On a server: sudo bash scripts/install.sh" });
+  const cloudflared = run("cloudflared", ["--version"]);
+  items.push({
+    ok: cloudflared.status === 0 ? true : "warn",
+    label: "Cloudflared installed",
+    hint: "Optional: lets you share a project on a temporary public address. Install it from the panel's Setup page, or: winget install Cloudflare.cloudflared",
+  });
   const port = Number(values.RENVER_PORT || 3000);
   items.push({ ok: (await portIsFree(port)) ? true : "warn", label: `Port ${port} free`, hint: "It is taken. That is fine: RenVer picks the next free port by itself." });
   return items;

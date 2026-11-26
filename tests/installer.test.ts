@@ -34,7 +34,7 @@ describe("getInstallPlan", () => {
   });
 
   it("maps every tool on Windows", () => {
-    const ids = { caddy: "CaddyServer.Caddy", git: "Git.Git", node: "OpenJS.NodeJS.LTS", docker: "Docker.DockerDesktop" };
+    const ids = { caddy: "CaddyServer.Caddy", git: "Git.Git", node: "OpenJS.NodeJS.LTS", docker: "Docker.DockerDesktop", cloudflared: "Cloudflare.cloudflared" };
     for (const tool of INSTALLABLE_TOOLS) {
       const result = getInstallPlan(tool, "win32", false);
       expect(result.ok && result.plan.steps[0]!.args).toContain(ids[tool]);

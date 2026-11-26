@@ -22,6 +22,9 @@ export interface SystemData {
 /** Tools the app cannot work without. */
 export const REQUIRED_TOOLS = ["docker", "caddy", "git", "node"] as const;
 
+/** Tools Setup offers but does not insist on. */
+export const OPTIONAL_TOOLS = ["cloudflared"] as const;
+
 export function missingRequirements(data: SystemData | null): CheckResult[] {
   if (!data) return [];
   return data.checks.filter(

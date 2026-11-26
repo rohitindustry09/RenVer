@@ -5,7 +5,7 @@ import { useState } from "react";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { LogPanel } from "./LogPanel";
 import { useInstaller } from "@/hooks/useInstaller";
-import { missingRequirements, REQUIRED_TOOLS, useSystem, type InstallHint } from "@/hooks/useSystem";
+import { missingRequirements, OPTIONAL_TOOLS, REQUIRED_TOOLS, useSystem, type InstallHint } from "@/hooks/useSystem";
 import type { CheckResult } from "@/lib/preflight";
 import { SETUP_COOKIE } from "@/lib/setup-gate";
 
@@ -14,6 +14,7 @@ const REQUIREMENT_COPY: Record<string, { title: string; description: string }> =
   caddy: { title: "Caddy", description: "Routes each subdomain to its app and issues HTTPS." },
   git: { title: "Git", description: "Clones projects from GitHub." },
   node: { title: "Node.js", description: "Runs the RenVer panel itself." },
+  cloudflared: { title: "Cloudflared", description: "Optional. Lets you share a project on a temporary public address, even from a home computer." },
 };
 
 const ONE_YEAR_SECONDS = 60 * 60 * 24 * 365;
@@ -63,7 +64,12 @@ export function SetupChecklist() {
   const requirements = REQUIRED_TOOLS.map((id) => data?.checks.find((c) => c.id === id)).filter(
     (c): c is CheckResult => c !== undefined,
   );
-  const environment = (data?.checks ?? []).filter((c) => !(REQUIRED_TOOLS as readonly string[]).includes(c.id));
+  const optional = OPTIONAL_TOOLS.map((id) => data?.checks.find((c) => c.id === id)).filter(
+    (c): c is CheckResult => c !== undefined,
+  );
+  const environment = (data?.checks ?? []).filter(
+    (c) => !(REQUIRED_TOOLS as readonly string[]).includes(c.id) && !(OPTIONAL_TOOLS as readonly string[]).includes(c.id),
+  );
   const missing = missingRequirements(data);
   const isReady = data !== null && missing.length === 0;
 
@@ -128,6 +134,27 @@ export function SetupChecklist() {
         )}
         {installer.error && <p className="notice error" style={{ margin: 16 }}>{installer.error}</p>}
       </section>
+
+      {optional.length > 0 && (
+        <section className="card" aria-labelledby="optional-heading">
+          <div className="card-head">
+            <h2 className="h3" id="optional-heading">Optional</h2>
+            <p className="sub">Not needed to continue.</p>
+          </div>
+          <ul className="rows">
+            {optional.map((check) => (
+              <RequirementRow
+                key={check.id}
+                check={check}
+                hint={data.installHints[check.id]}
+                isInstalling={installer.installing === check.id}
+                isBusy={installer.installing !== null}
+                onInstall={handleInstall}
+              />
+            ))}
+          </ul>
+        </section>
+      )}
 
       <section className="card" aria-labelledby="env-heading">
         <div className="card-head">

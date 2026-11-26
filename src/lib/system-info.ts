@@ -26,12 +26,13 @@ function firstVersion(text: string | null): string | null {
 }
 
 async function collectTools(): Promise<ToolVersions> {
-  const [docker, dockerInfo, compose, caddy, git] = await Promise.all([
+  const [docker, dockerInfo, compose, caddy, git, cloudflared] = await Promise.all([
     commandOutput("docker", ["--version"]),
     commandOutput("docker", ["info", "--format", "{{.ServerVersion}}"]),
     commandOutput("docker", ["compose", "version"]),
     commandOutput("caddy", ["version"]),
     commandOutput("git", ["--version"]),
+    commandOutput("cloudflared", ["--version"]),
   ]);
   return {
     docker: firstVersion(docker),
@@ -40,6 +41,7 @@ async function collectTools(): Promise<ToolVersions> {
     caddy: firstVersion(caddy),
     git: firstVersion(git),
     node: process.versions.node,
+    cloudflared: firstVersion(cloudflared),
   };
 }
 

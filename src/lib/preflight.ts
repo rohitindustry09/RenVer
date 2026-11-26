@@ -7,6 +7,8 @@ export interface ToolVersions {
   caddy: string | null;
   git: string | null;
   node: string | null;
+  /** Optional: only needed to share a project through a Cloudflare quick tunnel. */
+  cloudflared?: string | null;
 }
 
 export interface SystemInfo {
@@ -40,6 +42,8 @@ const MIN_MEM_MB = 1024;
 const RECOMMENDED_MEM_MB = 2048;
 const MIN_DISK_GB = 5;
 const RECOMMENDED_DISK_GB = 20;
+/** Tools that are offered in Setup but never block it, and are left out of the automatic install list. */
+const OPTIONAL_TOOLS: readonly string[] = ["cloudflared"];
 const REQUIRED_PORTS = [80, 443];
 const MIN_UBUNTU_MAJOR = 22;
 const MIN_DEBIAN_MAJOR = 12;
@@ -157,6 +161,7 @@ export function evaluate(info: SystemInfo, options: { caddyRunning?: boolean } =
     checkTool("caddy", "Caddy", info.tools.caddy),
     checkTool("git", "Git", info.tools.git),
     checkTool("node", "Node.js", info.tools.node),
+    checkTool("cloudflared", "Cloudflared", info.tools.cloudflared ?? null),
     checkPorts(info, options.caddyRunning ?? false),
   ];
 }
@@ -165,7 +170,7 @@ export function summarize(checks: readonly CheckResult[]): PreflightSummary {
   const failures = checks.filter((c) => c.status === "fail").map((c) => c.id);
   return {
     canInstall: failures.length === 0,
-    toInstall: checks.filter((c) => c.status === "missing" && c.fixable).map((c) => c.id),
+    toInstall: checks.filter((c) => c.status === "missing" && c.fixable && !OPTIONAL_TOOLS.includes(c.id)).map((c) => c.id),
     failures,
     warnings: checks.filter((c) => c.status === "warn").map((c) => c.id),
   };

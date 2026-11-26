@@ -16,12 +16,29 @@ const goodLinux: SystemInfo = {
     caddy: "2.8.4",
     git: "2.43.0",
     node: "22.4.0",
+    cloudflared: "2025.8.1",
   },
   portsInUse: [],
 };
 
 const find = (info: SystemInfo, id: string) =>
   evaluate(info).find((c) => c.id === id)!;
+
+describe("cloudflared (optional)", () => {
+  const withoutIt: SystemInfo = { ...goodLinux, tools: { ...goodLinux.tools, cloudflared: null } };
+
+  it("is offered for install when missing", () => {
+    const check = find(withoutIt, "cloudflared");
+    expect(check.status).toBe("missing");
+    expect(check.fixable).toBe(true);
+  });
+
+  it("never blocks or joins the automatic install list", () => {
+    const summary = summarize(evaluate(withoutIt));
+    expect(summary.canInstall).toBe(true);
+    expect(summary.toInstall).not.toContain("cloudflared");
+  });
+});
 
 describe("preflight evaluate", () => {
   it("passes everything on a healthy Ubuntu server", () => {

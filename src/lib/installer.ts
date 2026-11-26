@@ -1,4 +1,4 @@
-export const INSTALLABLE_TOOLS = ["caddy", "git", "node", "docker"] as const;
+export const INSTALLABLE_TOOLS = ["caddy", "git", "node", "docker", "cloudflared"] as const;
 export type InstallableTool = (typeof INSTALLABLE_TOOLS)[number];
 
 export interface InstallStep {
@@ -24,6 +24,7 @@ const WINGET_IDS: Record<InstallableTool, string> = {
   git: "Git.Git",
   node: "OpenJS.NodeJS.LTS",
   docker: "Docker.DockerDesktop",
+  cloudflared: "Cloudflare.cloudflared",
 };
 
 const BREW_ARGS: Record<InstallableTool, string[]> = {
@@ -31,6 +32,7 @@ const BREW_ARGS: Record<InstallableTool, string[]> = {
   git: ["install", "git"],
   node: ["install", "node"],
   docker: ["install", "--cask", "docker"],
+  cloudflared: ["install", "cloudflared"],
 };
 
 /** Constant scripts only: nothing user-supplied is ever interpolated into these. */
@@ -38,6 +40,13 @@ const LINUX_SCRIPTS: Record<InstallableTool, string> = {
   git: "apt-get update -y && apt-get install -y git",
   docker: "curl -fsSL https://get.docker.com | sh",
   node: "curl -fsSL https://deb.nodesource.com/setup_22.x | bash - && apt-get install -y nodejs",
+  cloudflared: [
+    "mkdir -p /usr/share/keyrings",
+    "curl -fsSL https://pkg.cloudflare.com/cloudflare-main.gpg -o /usr/share/keyrings/cloudflare-main.gpg",
+    "echo 'deb [signed-by=/usr/share/keyrings/cloudflare-main.gpg] https://pkg.cloudflare.com/cloudflared any main' > /etc/apt/sources.list.d/cloudflared.list",
+    "apt-get update -y",
+    "apt-get install -y cloudflared",
+  ].join(" && "),
   caddy: [
     "apt-get update -y",
     "apt-get install -y debian-keyring debian-archive-keyring apt-transport-https curl gpg",
