@@ -6,6 +6,7 @@ import { runDeploy } from "@/lib/deploy";
 import { detectProject } from "@/lib/detect";
 import { DomainError, planProjectHost, uniqueSlug } from "@/lib/domains";
 import { enqueue } from "@/lib/queue";
+import { setWantsShare } from "@/lib/tunnel-share";
 import { encryptEnv } from "@/lib/secrets";
 import { directoryFiles, sourceDirFor } from "@/lib/uploads";
 import { parseEnv, parseProjectConfig } from "@/lib/validate";
@@ -46,6 +47,7 @@ async function handlePOST(request: Request) {
       throw error;
     }
 
+    if (body.share === true) setWantsShare(project.id, true);
     const deploy = createDeploy(project.id, String(body.uploadId));
     void enqueue(() => runDeploy(project.id, deploy.id, sourceDir));
     return ok({ project: publicProject(project), deployId: deploy.id }, 202);

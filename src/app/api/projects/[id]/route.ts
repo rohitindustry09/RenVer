@@ -6,6 +6,8 @@ import { deleteProject, getProject, listDeploys, listProjectHosts, updateProject
 import { validateProjectName } from "@/lib/project-name";
 import { removeRelease, syncProxy } from "@/lib/deploy";
 import { dockerRemoveNetwork, dockerRemoveVolume } from "@/lib/docker";
+import { tunnels } from "@/lib/tunnels";
+import { setWantsShare } from "@/lib/tunnel-share";
 import { volumeName } from "@/lib/volume-name";
 import { appNetworkName } from "@/lib/network-names";
 import { readUploadSource } from "@/lib/uploads";
@@ -63,6 +65,8 @@ async function handleDELETE(_request: Request, { params }: Context) {
     const project = getProject(id);
     if (!project) return fail("Project not found.", 404);
     if (project.status === "deploying") return fail("A deploy is in progress. Try again when it finishes.", 409);
+    tunnels().stop(id);
+    setWantsShare(id, false);
     if (project.container) await removeRelease(project.container);
     await dockerRemoveNetwork(appNetworkName(id)).catch(() => undefined);
     for (const path of project.config.storage ?? []) await dockerRemoveVolume(volumeName(id, path)).catch(() => undefined);

@@ -11,6 +11,8 @@ interface Props {
   domain: DomainItem;
   /** The IP address to show in A records. */
   serverIp: string;
+  /** A Cloudflare token is saved, so this domain can be served through the tunnel. */
+  canUseCloudflare: boolean;
   onChanged: () => void;
 }
 
@@ -72,8 +74,9 @@ function RecordRow({ type, name, value, state }: { type: string; name: string; v
   );
 }
 
-export function DomainCard({ domain, serverIp, onChanged }: Props) {
-  const [busy, setBusy] = useState<"verify" | "check" | "remove" | null>(null);
+export function DomainCard({ domain, serverIp, canUseCloudflare, onChanged }: Props) {
+  const [busy, setBusy] = useState<"verify" | "check" | "remove" | "cloudflare" | null>(null);
+  const [cloudflareMessage, setCloudflareMessage] = useState<string | null>(null);
   const [verifyResult, setVerifyResult] = useState<VerifyResult | null>(null);
   const [dnsResult, setDnsResult] = useState<{ root: DnsCheck; wildcard: DnsCheck } | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -103,12 +106,21 @@ export function DomainCard({ domain, serverIp, onChanged }: Props) {
       if (result.verified) onChanged();
     });
 
+  const useCloudflare = () =>
+    run("cloudflare", async () => {
+      const result = await api<{ problems: string[] }>(`/api/domains/${domain.id}/cloudflare`, { method: "POST" });
+      setCloudflareMessage(
+        result.problems.length > 0 ? `Connected, with problems: ${result.problems.join("; ")}` : "Connected. Addresses on this domain are now served through Cloudflare.",
+      );
+      onChanged();
+    });
+
   const checkDns = () =>
     run("check", async () => setDnsResult(await api(`/api/domains/${domain.id}/check`, { method: "POST" })));
 
   // A verified domain is checked as soon as it is shown, so the records can be marked done without a click.
   useEffect(() => {
-    if (isPending || domain.isLocal) return;
+    if (isPending || domain.isLocal || domain.viaCloudflare) return;
     let cancelled = false;
     api<{ root: DnsCheck; wildcard: DnsCheck }>(`/api/domains/${domain.id}/check`, { method: "POST" })
       .then((result) => {
@@ -118,7 +130,7 @@ export function DomainCard({ domain, serverIp, onChanged }: Props) {
     return () => {
       cancelled = true;
     };
-  }, [domain.id, isPending, domain.isLocal]);
+  }, [domain.id, isPending, domain.isLocal, domain.viaCloudflare]);
 
   const wildcardState = stateOf(dnsResult?.wildcard, false);
   const rootState = stateOf(dnsResult?.root, true);
@@ -147,13 +159,17 @@ export function DomainCard({ domain, serverIp, onChanged }: Props) {
               ? "Waiting for ownership verification"
               : domain.isLocal
                 ? "Local domain: resolved by your browser, no DNS needed"
-                : "Verified"}
+                : domain.viaCloudflare
+                  ? "Served through your Cloudflare tunnel"
+                  : "Verified"}
             {" · "}
             {domain.hosts.length} {domain.hosts.length === 1 ? "address" : "addresses"} in use
           </div>
         </div>
         <div className="row-end">
-          <span className={`badge${isPending ? " warn" : ""}`}>{isPending ? "Pending" : domain.isLocal ? "Local" : "Verified"}</span>
+          <span className={`badge${isPending ? " warn" : domain.viaCloudflare ? " ok" : ""}`}>
+            {isPending ? "Pending" : domain.isLocal ? "Local" : domain.viaCloudflare ? "Cloudflare" : "Verified"}
+          </span>
           <button
             type="button"
             className="btn sm danger"
@@ -198,7 +214,13 @@ export function DomainCard({ domain, serverIp, onChanged }: Props) {
         </div>
       )}
 
-      {!isPending && !domain.isLocal && (
+      {domain.viaCloudflare && (
+        <p className="notice" style={{ margin: "0 24px 16px" }} role="status">
+          No DNS records to add. RenVer creates them in Cloudflare for every address you give a project on <span className="mono">{domain.name}</span>.
+        </p>
+      )}
+
+      {!isPending && !domain.isLocal && !domain.viaCloudflare && (
         <div style={{ borderTop: "1px solid var(--border)" }}>
           <button
             type="button"
@@ -277,22 +299,30 @@ export function DomainCard({ domain, serverIp, onChanged }: Props) {
           </p>
         </div>
       )}
+      {cloudflareMessage && <p className="notice" style={{ margin: "0 24px 16px" }} role="status">{cloudflareMessage}</p>}
       {error && <p className="notice error" style={{ margin: "0 24px 16px" }} role="alert">{error}</p>}
 
-      {(isPending || !domain.isLocal) && (
+      {!domain.isLocal && !domain.viaCloudflare && (
         <div className="card-foot">
           <span className="small muted">
             {isPending ? "DNS changes can take a few minutes to appear." : "Checks that the domain and its subdomains point here."}
           </span>
-          {isPending ? (
-            <button type="button" className="btn primary sm" disabled={busy !== null} onClick={verify}>
-              {busy === "verify" ? "Checking…" : "Verify ownership"}
-            </button>
-          ) : (
-            <button type="button" className="btn sm" disabled={busy !== null} onClick={checkDns}>
-              {busy === "check" ? "Checking…" : "Check DNS"}
-            </button>
-          )}
+          <div className="toolbar">
+            {isPending ? (
+              <button type="button" className={`btn sm${canUseCloudflare ? "" : " primary"}`} disabled={busy !== null} onClick={verify}>
+                {busy === "verify" ? "Checking…" : "Verify ownership"}
+              </button>
+            ) : (
+              <button type="button" className="btn sm" disabled={busy !== null} onClick={checkDns}>
+                {busy === "check" ? "Checking…" : "Check DNS"}
+              </button>
+            )}
+            {canUseCloudflare && (
+              <button type="button" className="btn primary sm" disabled={busy !== null} onClick={useCloudflare}>
+                {busy === "cloudflare" ? "Connecting…" : "Use Cloudflare"}
+              </button>
+            )}
+          </div>
         </div>
       )}
     </section>

@@ -24,6 +24,11 @@ export async function startBackgroundWork(): Promise<void> {
   // The watchdog's first pass re-syncs routes and restarts anything that died while the panel was down.
   startWatchdog();
 
+  // Bring the Cloudflare tunnel back, if one is set up.
+  void import("./lib/cloudflare-live").then(({ cloudflare }) =>
+    cloudflare().resume().catch((error: unknown) => process.stdout.write(`[renver] cloudflare: ${error instanceof Error ? error.message : String(error)}\n`)),
+  );
+
   const { listProjects } = await import("./lib/db");
   const hasRunningApps = listProjects().some((p) => p.status === "running" && p.hostPort !== null);
   if (!hasRunningApps) return;

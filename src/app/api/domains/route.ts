@@ -5,11 +5,13 @@ import { config } from "@/lib/config";
 import { listDomains, listHostsForDomain, getSetting } from "@/lib/db";
 import { challengeHost, challengeValue, isLocalDomain } from "@/lib/domain-names";
 import { addDomain, serverAddresses } from "@/lib/domains";
+import { cloudflare } from "@/lib/cloudflare-live";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET() {
+  const tunnel = cloudflare();
   const domains = listDomains().map((d) => {
     const hosts = listHostsForDomain(d.id).map((h) => h.host);
     return {
@@ -17,6 +19,7 @@ export async function GET() {
       name: d.name,
       status: d.status,
       isLocal: isLocalDomain(d.name),
+      viaCloudflare: tunnel.isCloudflareDomain(d.id),
       verifiedAt: d.verifiedAt,
       createdAt: d.createdAt,
       hosts,
@@ -29,6 +32,7 @@ export async function GET() {
     serverAddresses: serverAddresses(),
     configuredServerIp: getSetting("server_ip"),
     proxy: { running: await isCaddyRunning() },
+    cloudflare: tunnel.status(),
   });
 }
 

@@ -12,6 +12,7 @@ import { EnvVarList } from "./EnvVarList";
 import { PauseCard } from "./PauseCard";
 import { ProjectDomains } from "./ProjectDomains";
 import { ProjectNameCard } from "./ProjectNameCard";
+import { ShareCard } from "./ShareCard";
 import type { ProjectDetail } from "./types";
 
 interface Props {
@@ -133,6 +134,8 @@ export function SettingsTab({ detail, onRedeploy, onChanged }: Props) {
         </div>
         <div className="card-foot"><span className="small muted">To change these, import the project again from New Project.</span></div>
       </section>
+
+      <ShareCard project={project} />
 
       <PauseCard project={project} onChanged={onChanged} />
 

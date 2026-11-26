@@ -3,12 +3,13 @@ import path from "node:path";
 import { applyCaddyConfig, buildCaddyConfig, ensureCaddyRunning } from "./caddy";
 import { config } from "./config";
 import { hostUrl } from "./domain-names";
+import { cloudflare } from "./cloudflare-live";
 import { stackOf } from "./stack";
+import { resumeShare } from "./tunnel-share";
 import { pruneUploads } from "./upload-cleanup";
 import {
   getProject,
   listProjectHosts,
-  listRunningRoutes,
   updateDeploy,
   updateProject,
   usedHostPorts,
@@ -102,18 +103,30 @@ export async function removeRelease(container: string): Promise<void> {
 
 /** Sends every running project's route to Caddy. Returns whether Caddy accepted the config. */
 export async function syncProxy(log: Log): Promise<boolean> {
-  const caddyConfig = buildCaddyConfig(listRunningRoutes(), {
+  const caddyConfig = buildCaddyConfig(cloudflare().proxyRoutes(), {
     panel: getPanelHost() ? { hosts: [getPanelHost() as string], port: config.panelPort } : undefined,
   });
   try {
     await ensureCaddyRunning(path.join(config.dataDir, "caddy-bootstrap.json"));
     await applyCaddyConfig(caddyConfig);
     log("Proxy updated.");
+    await syncCloudflare(log);
     return true;
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     log(`Warning: could not update Caddy (${message}). The app is still reachable on its local port.`);
+    await syncCloudflare(log);
     return false;
+  }
+}
+
+/** Keeps the Cloudflare tunnel's routes and DNS records in step with the running apps. Never throws. */
+async function syncCloudflare(log: Log): Promise<void> {
+  try {
+    const result = await cloudflare().sync();
+    for (const problem of result.errors) log(`Cloudflare: ${problem}`);
+  } catch (error) {
+    log(`Cloudflare: ${error instanceof Error ? error.message : String(error)}`);
   }
 }
 
@@ -235,4 +248,5 @@ export async function runDeploy(projectId: string, deployId: string, sourceDir: 
   }
 
   await finishRelease(project, deployId, release, previous, log);
+  await resumeShare(projectId, release.hostPort, log);
 }

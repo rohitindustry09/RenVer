@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { AddDomainForm } from "@/components/domains/AddDomainForm";
+import { CloudflareCard } from "@/components/domains/CloudflareCard";
 import { DomainCard } from "@/components/domains/DomainCard";
 import { ServerIpCard } from "@/components/domains/ServerIpCard";
 import type { DomainsPayload } from "@/components/domains/types";
@@ -68,8 +69,10 @@ export default function DomainsPage() {
         )}
 
         {data.domains.map((domain) => (
-          <DomainCard key={domain.id} domain={domain} serverIp={serverIp} onChanged={reload} />
+          <DomainCard key={domain.id} domain={domain} serverIp={serverIp} canUseCloudflare={data.cloudflare.hasToken} onChanged={reload} />
         ))}
+
+        <CloudflareCard status={data.cloudflare} onChanged={reload} />
 
         <ServerIpCard
           key={data.configuredServerIp ?? "none"}

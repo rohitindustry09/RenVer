@@ -8,12 +8,12 @@ import { getPanelHost } from "./panel-host";
 import {
   listDatabaseRecords,
   listProjects,
-  listRunningRoutes,
   updateDatabaseStatus,
   updateProject,
 } from "./db";
 import { dumpDatabase } from "./databases";
 import { pruneDumps } from "./db-dumps";
+import { cloudflare } from "./cloudflare-live";
 import { syncProxy } from "./deploy";
 import { dockerStart, runningContainerNames } from "./docker";
 import { notifyNewAlerts } from "./notifier";
@@ -42,7 +42,7 @@ function realDeps(): ReconcileDeps {
       isUp: () => isCaddyRunning(),
       liveHosts: () => getLiveRouteHosts(),
       desiredHosts: () => [
-        ...listRunningRoutes().flatMap((route) => route.hosts),
+        ...cloudflare().proxyRoutes().flatMap((route) => route.hosts),
         ...(getPanelHost() ? [getPanelHost() as string] : []),
       ],
       apply: () => syncProxy(() => undefined),

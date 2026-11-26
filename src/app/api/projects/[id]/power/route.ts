@@ -1,5 +1,6 @@
 import { audited } from "@/lib/audited";
 import { failFrom, ok } from "@/lib/api";
+import { tunnels } from "@/lib/tunnels";
 import { POWER_ACTIONS, PowerError, setProjectPower, type PowerAction } from "@/lib/power";
 
 export const runtime = "nodejs";
@@ -11,7 +12,9 @@ async function handlePOST(request: Request, { params }: { params: Promise<{ id: 
     const body = (await request.json().catch(() => ({}))) as { action?: unknown };
     const action = POWER_ACTIONS.find((a) => a === body.action) as PowerAction | undefined;
     if (!action) throw new PowerError("Choose pause, resume or restart.", 400);
-    const result = await setProjectPower((await params).id, action);
+    const { id } = await params;
+    if (action !== "resume") tunnels().stop(id);
+    const result = await setProjectPower(id, action);
     return ok({ action, deployId: result.deployId ?? null });
   } catch (error) {
     return failFrom(error, 500);

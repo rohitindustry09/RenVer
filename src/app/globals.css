@@ -648,6 +648,44 @@ kbd {
 .env-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr) 40px; gap: 8px; align-items: center; }
 .icon-btn { width: 40px; height: 40px; padding: 0; }
 
+/* A status dot beside a title and a line of detail, for use inside a padded card body (a .row would add its own border). */
+.status-line { display: flex; gap: 12px; align-items: flex-start; }
+.status-line .dot { margin-top: 8px; }
+
+/* A short numbered guide: one connected bar, each step done, current or waiting. */
+.steps {
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); list-style: none; margin: 0; padding: 0;
+  border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg-subtle); overflow: hidden;
+}
+.step { display: flex; gap: 12px; align-items: center; padding: 14px 16px; min-width: 0; }
+.step + .step { border-left: 1px solid var(--border); }
+.step-num {
+  width: 24px; height: 24px; border-radius: 50%; flex-shrink: 0; display: grid; place-items: center;
+  font-size: 12px; font-weight: 600; line-height: 1; color: var(--text-3); border: 1px solid var(--border-strong);
+}
+.step-num svg { width: 12px; height: 12px; }
+.step-title { font-weight: 500; font-size: 14px; line-height: 20px; color: var(--text-2); }
+.step-text { color: var(--text-3); font-size: 13px; line-height: 18px; }
+.step[data-state="current"] { background: var(--bg); }
+.step[data-state="current"] .step-num { background: var(--inverse-bg); border-color: var(--inverse-bg); color: var(--inverse-text); }
+.step[data-state="current"] .step-title { color: var(--text); }
+.step[data-state="current"] .step-text { color: var(--text-2); }
+.step[data-state="done"] .step-num { color: var(--success); border-color: var(--success); background: transparent; }
+.step[data-state="done"] .step-title { color: var(--text); }
+.step[data-state="done"] .step-text { color: var(--text-2); }
+
+/* A public address shown prominently, with its actions beside it. */
+.link-box {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  padding: 12px 16px; border: 1px solid var(--border-strong); border-radius: var(--radius); background: var(--bg-subtle);
+}
+.link-box a { flex: 1; min-width: 0; font: 400 13px var(--font-mono); overflow-wrap: anywhere; }
+
+/* A checkbox with a label and an explanation underneath. */
+.check-field { display: flex; gap: 12px; align-items: flex-start; cursor: pointer; }
+.check-field input { margin-top: 4px; flex-shrink: 0; }
+.check-field .hint { display: block; margin-top: 4px; color: var(--text-2); font-size: 13px; }
+
 .check-hint { display: flex; align-items: center; gap: 8px; margin-top: 8px; font-size: 13px; color: var(--text-2); }
 
 .success-card { text-align: center; padding: 40px 24px; display: grid; gap: 16px; justify-items: center; }
@@ -657,6 +695,8 @@ kbd {
 }
 
 @media (max-width: 900px) {
+  .steps { grid-template-columns: minmax(0, 1fr); }
+  .step + .step { border-left: 0; border-top: 1px solid var(--border); }
   .import-grid, .split { grid-template-columns: minmax(0, 1fr); }
   .env-row { grid-template-columns: minmax(0, 1fr) 40px; }
   .env-row .value { grid-column: 1 / 2; }
@@ -701,3 +741,58 @@ kbd {
 .gauge-value { font-size: 13px; font-family: var(--font-mono); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .gauge-sub { font-size: 11px; color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 @media (max-width: 480px) { .card-gauges { grid-template-columns: 1fr; } }
+
+/* ---------- Motion ----------
+   Only transform and opacity move, so it stays smooth. Everything here is skipped when the person asks for reduced
+   motion (and the rule near the top of this file turns off any other animation or transition in that case). */
+:root {
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --duration-base: 240ms;
+  --duration-slow: 420ms;
+}
+
+@keyframes rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+@keyframes pop { from { opacity: 0; transform: translateY(6px) scale(0.97); } to { opacity: 1; transform: none; } }
+@keyframes badge-pop { 0% { transform: scale(0.6); } 60% { transform: scale(1.14); } 100% { transform: scale(1); } }
+@keyframes draw { from { stroke-dashoffset: 16; } to { stroke-dashoffset: 0; } }
+@keyframes ping { 0% { transform: scale(1); opacity: 0.45; } 80%, 100% { transform: scale(2.8); opacity: 0; } }
+@keyframes grow { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+
+@media (prefers-reduced-motion: no-preference) {
+  /* A page's heading and its cards ease in one after another when the page opens or a tab changes. */
+  .container > .page-head { animation: rise var(--duration-slow) var(--ease-out) both; }
+  .stack > .card, .stack > details.accordion, .stack > .empty { animation: rise var(--duration-slow) var(--ease-out) both; }
+  .stack > :nth-child(2) { animation-delay: 50ms; }
+  .stack > :nth-child(3) { animation-delay: 100ms; }
+  .stack > :nth-child(4) { animation-delay: 150ms; }
+  .stack > :nth-child(5) { animation-delay: 200ms; }
+  .stack > :nth-child(6) { animation-delay: 250ms; }
+  .stack > :nth-child(n + 7) { animation-delay: 300ms; }
+
+  /* Things that appear on their own: messages, popups, the public link, opened sections. */
+  .notice { animation: rise var(--duration-base) var(--ease-out) both; }
+  .modal, .palette { animation: pop var(--duration-base) var(--ease-out) both; }
+  .link-box { animation: pop var(--duration-base) var(--ease-out) both; }
+  details[open] > .body { animation: rise var(--duration-base) var(--ease-out) both; }
+
+  /* Controls answer the pointer. */
+  .btn { transition: background var(--duration-fast), border-color var(--duration-fast), opacity var(--duration-fast), transform 90ms var(--ease-out); }
+  .btn:active:not(:disabled) { transform: scale(0.97); }
+  .card.link { transition: border-color var(--duration-fast), background var(--duration-fast), transform var(--duration-base) var(--ease-out); }
+  .card.link:hover { transform: translateY(-2px); }
+
+  /* The tab underline grows in under the page you opened. */
+  .tab[aria-current="page"]::after { transform-origin: left; animation: grow var(--duration-base) var(--ease-out) both; }
+
+  /* Setup guide: a step that becomes done pops, and its check draws itself. */
+  .step, .step-num { transition: background var(--duration-slow) var(--ease-out), color var(--duration-slow), border-color var(--duration-slow); }
+  .step[data-state="done"] .step-num { animation: badge-pop 380ms var(--ease-out) both; }
+  .step-num svg path { stroke-dasharray: 16; animation: draw 420ms var(--ease-out) 120ms both; }
+
+  /* A live status (tunnel connected, project shared) gets a soft ring so it reads as alive. */
+  .status-line .dot.ok { position: relative; }
+  .status-line .dot.ok::after {
+    content: ""; position: absolute; inset: 0; border-radius: 50%; background: var(--success);
+    animation: ping 2s var(--ease-out) infinite; pointer-events: none;
+  }
+}

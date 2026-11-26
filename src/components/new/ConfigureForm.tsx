@@ -77,6 +77,7 @@ export function ConfigureForm() {
   const [started, setStarted] = useState<Started | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [shouldShare, setShouldShare] = useState(false);
 
   useEffect(() => {
     if (!uploadId) {
@@ -137,7 +138,7 @@ export function ConfigureForm() {
       const result = await api<{ project: PublicProject; deployId: string }>("/api/projects", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ uploadId, name, domainId, label, env: env.env, config: draftToPayload(draft) }),
+        body: JSON.stringify({ uploadId, name, domainId, label, env: env.env, config: draftToPayload(draft), share: shouldShare }),
       });
       setStarted({ deployId: result.deployId, projectId: result.project.id, host: result.project.primaryHost });
     } catch (e) {
@@ -189,6 +190,25 @@ export function ConfigureForm() {
                   />
                   <span className="hint">You can add more addresses to this project later, from its Settings.</span>
                 </div>
+              </div>
+            </section>
+
+            <section className="card" aria-labelledby="public-link-heading">
+              <div className="card-head">
+                <h2 className="h3" id="public-link-heading">Public link</h2>
+                <p className="sub">Optional. Reach this project from anywhere, even from a home computer.</p>
+              </div>
+              <div className="card-pad">
+                <label className="check-field">
+                  <input type="checkbox" checked={shouldShare} onChange={(e) => setShouldShare(e.target.checked)} />
+                  <span>
+                    <strong>Share it publicly through Cloudflare</strong>
+                    <span className="hint">
+                      Gives it a random https://….trycloudflare.com link with no account, domain or open ports. Anyone with the
+                      link can open the app. You will find the link in the project&apos;s Settings.
+                    </span>
+                  </span>
+                </label>
               </div>
             </section>
 
