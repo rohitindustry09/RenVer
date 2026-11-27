@@ -3,9 +3,20 @@
 import { useRouter } from "next/navigation";
 import { useState, type DragEvent, type FormEvent } from "react";
 import type { AnalyzedUpload } from "@/lib/uploads";
+import Link from "next/link";
+import { useFetch } from "@/hooks/useFetch";
 import { api } from "@/lib/client-api";
+import type { RepoOption } from "@/lib/github-repos";
+import { RepoPicker } from "./RepoPicker";
 
 type Source = "github" | "zip";
+
+interface RepoList {
+  connected: boolean;
+  login: string | null;
+  repos: RepoOption[];
+  error: string | null;
+}
 
 function GithubMark() {
   return (
@@ -19,10 +30,15 @@ export function ImportCards() {
   const router = useRouter();
   const [url, setUrl] = useState("");
   const [branch, setBranch] = useState("");
+  const [branchHint, setBranchHint] = useState("");
+  const { data: github, error: githubError } = useFetch<RepoList>("/api/github/repos");
   const [file, setFile] = useState<File | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [busy, setBusy] = useState<Source | null>(null);
   const [error, setError] = useState<{ source: Source; message: string } | null>(null);
+
+  const pickerStatus = githubError && !github ? "off" : !github ? "loading" : !github.connected ? "off" : github.error ? "error" : "ready";
+  const isConnected = github?.connected === true;
 
   const goToConfigure = (upload: AnalyzedUpload) => router.push(`/new/configure?upload=${upload.uploadId}`);
 
@@ -69,27 +85,39 @@ export function ImportCards() {
           <h2 className="h3" style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <GithubMark /> Import Git Repository
           </h2>
-          <p className="sub">Clone a public GitHub repository.</p>
+          <p className="sub">{isConnected ? "Pick one of your repositories, or paste any public one." : "Clone a public GitHub repository."}</p>
         </div>
         <div className="card-pad">
-          <label className="field">
-            <span className="label">Repository</span>
-            <input
-              className="input mono"
-              placeholder="github.com/owner/repo"
+          <div className="field">
+            <label className="label" htmlFor="github-repo">Repository</label>
+            <RepoPicker
+              id="github-repo"
               value={url}
-              onChange={(e) => setUrl(e.target.value)}
-              autoComplete="off"
-              spellCheck={false}
-              required
+              onChange={(text) => {
+                setUrl(text);
+                setBranchHint("");
+              }}
+              onPick={(repo) => {
+                setUrl(repo.fullName);
+                setBranchHint(repo.defaultBranch);
+              }}
+              repos={github?.repos ?? []}
+              status={pickerStatus}
+              message={github?.error}
             />
-            <span className="hint">A full URL, or just owner/repo.</span>
-          </label>
+            <span className="hint">
+              {isConnected ? (
+                <>A full URL, or just owner/repo.{github?.login ? <> Showing the repositories of <span className="mono">{github.login}</span>.</> : null}</>
+              ) : (
+                <>A full URL, or just owner/repo. To pick from your own repositories, <Link href="/settings">connect GitHub in Settings</Link>.</>
+              )}
+            </span>
+          </div>
           <label className="field">
             <span className="label">Branch <span className="faint">(optional)</span></span>
             <input
               className="input mono"
-              placeholder="default branch"
+              placeholder={branchHint ? `${branchHint} (default)` : "default branch"}
               value={branch}
               onChange={(e) => setBranch(e.target.value)}
               autoComplete="off"
@@ -99,7 +127,7 @@ export function ImportCards() {
           {error?.source === "github" && <p className="notice error" role="alert">{error.message}</p>}
         </div>
         <div className="card-foot">
-          <span className="small muted">Private repositories are not supported yet.</span>
+          <span className="small muted">{isConnected ? "Private repositories work: GitHub is connected." : "Private repositories need GitHub connected in Settings."}</span>
           <button type="submit" className="btn primary" disabled={!url.trim() || busy !== null}>
             {busy === "github" ? "Cloning…" : "Continue"}
           </button>

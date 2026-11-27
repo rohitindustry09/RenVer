@@ -603,7 +603,17 @@ kbd {
 .back-link:hover { color: var(--text); }
 
 .import-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; }
-.import-card { display: grid; grid-template-rows: auto 1fr auto; }
+.import-card { display: grid; grid-template-rows: auto 1fr auto; overflow: visible; }
+.import-card .card-foot { border-radius: 0 0 var(--radius) var(--radius); }
+
+/* The repository list opens under its box inside the card (the shared menu style is positioned on the page instead). */
+.repo-picker { position: relative; }
+.repo-menu { position: absolute; top: calc(100% + 6px); left: 0; right: 0; max-height: 264px; z-index: 30; }
+.repo-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.repo-desc { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.repo-meta { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.repo-note { padding: 10px; font-size: 13px; color: var(--text-2); }
+.repo-note.error { color: var(--error); }
 .import-card .card-pad { display: grid; gap: 16px; align-content: start; }
 
 .dropzone {
@@ -771,7 +781,7 @@ kbd {
 
   /* Things that appear on their own: messages, popups, the public link, opened sections. */
   .notice { animation: rise var(--duration-base) var(--ease-out) both; }
-  .modal, .palette { animation: pop var(--duration-base) var(--ease-out) both; }
+  .modal, .palette, .repo-menu { animation: pop var(--duration-base) var(--ease-out) both; }
   .link-box { animation: pop var(--duration-base) var(--ease-out) both; }
   details[open] > .body { animation: rise var(--duration-base) var(--ease-out) both; }
 
