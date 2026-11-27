@@ -99,6 +99,10 @@ export function createTunnelManager(deps: Deps) {
       const url = tunnels.get(projectId)?.url;
       return url ? { url } : null;
     },
+    /** Stops every quick tunnel (the panel is about to exit, and a tunnel left behind would only be orphaned). */
+    stopAll(): void {
+      for (const projectId of [...tunnels.keys()]) this.stop(projectId);
+    },
     stop(projectId: string): void {
       const entry = tunnels.get(projectId);
       if (!entry) return;

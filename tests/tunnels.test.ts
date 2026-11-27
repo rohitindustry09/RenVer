@@ -78,6 +78,22 @@ describe("tunnel manager", () => {
     expect(m.get("p1")).toBeNull();
   });
 
+  it("stops every tunnel at once", async () => {
+    const a = new FakeProcess();
+    const b = new FakeProcess();
+    const procs = [a, b];
+    const m = createTunnelManager({ binary: () => "cloudflared", spawn: () => procs.shift()!, timeoutMs: 1000 });
+    const pa = m.start("p1", 4001);
+    const pb = m.start("p2", 4002);
+    announce(a, "https://a.trycloudflare.com");
+    announce(b, "https://b.trycloudflare.com");
+    await Promise.all([pa, pb]);
+    m.stopAll();
+    expect(a.killed && b.killed).toBe(true);
+    expect(m.get("p1")).toBeNull();
+    expect(m.get("p2")).toBeNull();
+  });
+
   it("forgets the tunnel when the process exits by itself", async () => {
     const proc = new FakeProcess();
     const { m } = manager(proc);

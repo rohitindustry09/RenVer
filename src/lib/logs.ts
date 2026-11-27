@@ -17,6 +17,12 @@ export function appendLog(deployId: string, line: string): void {
   fs.appendFileSync(file, `${line}\n`);
 }
 
+/** The size in bytes of a log file, or 0 when it does not exist yet. */
+export function logSize(deployId: string): number {
+  const file = logPath(deployId);
+  return fs.existsSync(file) ? fs.statSync(file).size : 0;
+}
+
 export function resetLog(deployId: string): void {
   fs.rmSync(logPath(deployId), { force: true });
 }

@@ -10,6 +10,7 @@ import { NotificationsCard } from "@/components/NotificationsCard";
 import { PanelAddressCard } from "@/components/PanelAddressCard";
 import { ResourcesCard, type ResourceInfo } from "@/components/ResourcesCard";
 import { SkeletonLines } from "@/components/Skeleton";
+import { UpdateCard } from "@/components/UpdateCard";
 import { useFetch } from "@/hooks/useFetch";
 import { api } from "@/lib/client-api";
 import { applyTheme, readTheme, type ThemeChoice } from "@/lib/theme";
@@ -112,6 +113,8 @@ export default function SettingsPage() {
             <span className="small muted">These come from environment variables. Change them, then restart RenVer. Resource limits are below and can be edited here.</span>
           </div>
         </section>
+
+        <UpdateCard />
 
         {data && <PanelAddressCard key={data.panelHost} host={data.panelHost} verifiedDomains={data.verifiedDomains} onSaved={reload} />}
 

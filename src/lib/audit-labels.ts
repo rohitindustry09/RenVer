@@ -56,6 +56,7 @@ export const AUDIT_LABELS: Record<string, string> = {
   "settings.server-ip": "Changed the server address",
   "settings.backup-schedule": "Changed the backup schedule",
   "system.cleanup": "Cleaned up the disk",
+  "system.update": "Updated RenVer (pull, build, restart)",
   "system.install": "Installed a required tool",
   "system.proxy-sync": "Re-sent the proxy routes",
   "webhook.deploy": "Deployed from a GitHub push",

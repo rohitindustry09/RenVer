@@ -11,8 +11,11 @@ import { spawn } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { markBuildBad, pickDistDir } from "./dist-select.mjs";
 import { parseEnv } from "./env-file.mjs";
+import { createLogSink } from "./log-sink.mjs";
 import { findFreePort, isPidAlive, readLock } from "./port-select.mjs";
+import { supervise } from "./supervise.mjs";
 
 const MODES = new Set(["dev", "start"]);
 const DEFAULT_PORT = 3000;
@@ -80,17 +83,60 @@ const removeLock = () => {
 
 console.log(`RenVer (${mode}) will open at http://${HOST}:${port}`);
 const nextBin = path.join(root, "node_modules", "next", "dist", "bin", "next");
-const child = spawn(process.execPath, [nextBin, mode, "-H", HOST, "-p", String(port)], {
-  stdio: "inherit",
-  // The app reads RENVER_PORT to point the proxy at itself.
-  env: { ...process.env, PORT: String(port), RENVER_PORT: String(port) },
-});
 
-const stop = (signal) => () => child.kill(signal);
+// Everything the panel prints is also kept in a file (data/logs/panel.log), which the Settings page shows live.
+const panelLog = createLogSink(path.join(dataDir, "logs", "panel.log"), 5 * 1024 * 1024);
+const say = (line) => {
+  const text = `[launcher] ${line}
+`;
+  process.stdout.write(text);
+  panelLog.write(text);
+};
+
+// An update builds into a spare folder and asks for a restart; the newest finished build is then run. Someone who set
+// NEXT_DIST_DIR themselves keeps full control of the folder.
+const isDistManaged = mode === "start" && !process.env.NEXT_DIST_DIR;
+
+let current = null;
+let isStopping = false;
+
+function spawnChild(distDir) {
+  return new Promise((resolve) => {
+    const env = { ...process.env, PORT: String(port), RENVER_PORT: String(port), RENVER_SUPERVISED: "1" };
+    if (distDir) env.NEXT_DIST_DIR = distDir;
+    const child = spawn(process.execPath, [nextBin, mode, "-H", HOST, "-p", String(port)], { stdio: ["inherit", "pipe", "pipe"], env });
+    current = child;
+    const forward = (stream, target) =>
+      stream.on("data", (chunk) => {
+        target.write(chunk);
+        panelLog.write(chunk.toString("utf8"));
+      });
+    forward(child.stdout, process.stdout);
+    forward(child.stderr, process.stderr);
+    child.on("error", (error) => {
+      say(`Could not start the panel: ${error.message}`);
+      resolve({ code: 1, signal: null });
+    });
+    child.on("close", (code, signal) => {
+      current = null;
+      resolve({ code: isStopping && code === 75 ? 0 : code, signal });
+    });
+  });
+}
+
+const stop = (signal) => () => {
+  isStopping = true;
+  current?.kill(signal);
+};
 process.on("SIGINT", stop("SIGINT"));
 process.on("SIGTERM", stop("SIGTERM"));
 process.on("exit", removeLock);
-child.on("exit", (code, signal) => {
-  removeLock();
-  process.exit(code ?? (signal ? 1 : 0));
+
+const { code, signal } = await supervise({
+  pick: () => (isDistManaged ? pickDistDir(root) : null),
+  spawnChild,
+  markBad: (dir) => markBuildBad(root, dir),
+  log: say,
 });
+removeLock();
+process.exit(code ?? (signal ? 1 : 0));
