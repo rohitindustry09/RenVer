@@ -117,24 +117,26 @@ export async function syncProxy(log: Log): Promise<boolean> {
     await ensureCaddyRunning(path.join(config.dataDir, "caddy-bootstrap.json"));
     await applyCaddyConfig(caddyConfig);
     log("Proxy updated.");
-    await syncCloudflare(log);
+    syncCloudflare(log);
     return true;
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     log(`Warning: could not update Caddy (${message}). The app is still reachable on its local port.`);
-    await syncCloudflare(log);
+    syncCloudflare(log);
     return false;
   }
 }
 
-/** Keeps the Cloudflare tunnel's routes and DNS records in step with the running apps. Never throws. */
-async function syncCloudflare(log: Log): Promise<void> {
-  try {
-    const result = await cloudflare().sync();
-    for (const problem of result.errors) log(`Cloudflare: ${problem}`);
-  } catch (error) {
-    log(`Cloudflare: ${error instanceof Error ? error.message : String(error)}`);
-  }
+/**
+ * Keeps the Cloudflare tunnel's routes and DNS records in step with the running apps. It runs in the background: pausing a
+ * project, adding an address or deploying must not wait for Cloudflare's servers, which can take many seconds on a bad
+ * connection. Problems are written to the log when the sync finishes. Never throws.
+ */
+function syncCloudflare(log: Log): void {
+  cloudflare()
+    .sync()
+    .then((result) => result.errors.forEach((problem) => log(`Cloudflare: ${problem}`)))
+    .catch((error: unknown) => log(`Cloudflare: ${error instanceof Error ? error.message : String(error)}`));
 }
 
 interface Release {
