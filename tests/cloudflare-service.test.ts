@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import type { CloudflareClient, Zone } from "@/lib/cloudflare-api";
+import { CloudflareError, type CloudflareClient, type Zone } from "@/lib/cloudflare-api";
 import { createCloudflareService, type CloudflareStore } from "@/lib/cloudflare";
 
 function memoryStore(): CloudflareStore {
@@ -16,6 +16,7 @@ function setup(opts: { zone?: Zone | null; records?: Record<string, { id: string
     verifyToken: vi.fn(async () => void calls.push("verify")),
     findZone: vi.fn(async () => (opts.zone === undefined ? zone() : opts.zone)),
     createTunnel: vi.fn(async () => (calls.push("createTunnel"), "t1")),
+    findTunnel: vi.fn(async () => null as string | null),
     getTunnelToken: vi.fn(async () => "run-token"),
     deleteTunnel: vi.fn(async () => void calls.push("deleteTunnel")),
     putIngress: vi.fn(async () => void calls.push("putIngress")),
@@ -93,6 +94,46 @@ describe("connecting a domain", () => {
     expect(service.isCloudflareDomain("d1")).toBe(true);
     await service.connectDomain("d1");
     expect(client.createTunnel).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("an existing tunnel with the same name", () => {
+  const taken = () => new CloudflareError("Cloudflare: You already have a tunnel with this name. Delete the existing tunnel, or choose a different name for your new tunnel");
+
+  it("creates a tunnel named renver", async () => {
+    const { service, client } = setup();
+    await service.saveToken("tok");
+    await service.connectDomain("d1");
+    expect(client.createTunnel).toHaveBeenCalledWith("a1", "renver");
+  });
+
+  it("takes it over: reuses it, runs it and replaces its routes", async () => {
+    const { service, client, runner } = setup();
+    client.createTunnel.mockRejectedValueOnce(taken());
+    client.findTunnel.mockResolvedValueOnce("t-old");
+    await service.saveToken("tok");
+    await service.connectDomain("d1");
+    expect(client.createTunnel).toHaveBeenCalledTimes(1);
+    expect(client.findTunnel).toHaveBeenCalledWith("a1", "renver");
+    expect(client.getTunnelToken).toHaveBeenCalledWith("a1", "t-old");
+    expect(runner.start).toHaveBeenCalledWith("run-token");
+    expect(client.putIngress).toHaveBeenCalledWith("a1", "t-old", expect.any(Array));
+    expect(service.status().tunnel).toBe(true);
+  });
+
+  it("reports the original problem if the tunnel cannot be found", async () => {
+    const { service, client } = setup();
+    client.createTunnel.mockRejectedValue(taken());
+    await service.saveToken("tok");
+    await expect(service.connectDomain("d1")).rejects.toThrow(/already have a tunnel/i);
+  });
+
+  it("does not adopt anything for other errors", async () => {
+    const { service, client } = setup();
+    client.createTunnel.mockRejectedValue(new CloudflareError("Cloudflare refused the request (permission)."));
+    await service.saveToken("tok");
+    await expect(service.connectDomain("d1")).rejects.toThrow(/refused/);
+    expect(client.findTunnel).not.toHaveBeenCalled();
   });
 });
 

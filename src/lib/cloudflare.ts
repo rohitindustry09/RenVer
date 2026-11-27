@@ -44,6 +44,7 @@ const TUNNEL_KEY = "cf:tunnel";
 const ZONES_KEY = "cf:zones";
 const RECORDS_KEY = "cf:records";
 const TUNNEL_NAME = "renver";
+const isNameTaken = (error: unknown): boolean => error instanceof Error && /already have a tunnel/i.test(error.message);
 const tunnelTarget = (tunnelId: string): string => `${tunnelId}.cfargotunnel.com`;
 const message = (error: unknown): string => (error instanceof Error ? error.message : String(error));
 
@@ -138,6 +139,18 @@ export function createCloudflareService(deps: Deps) {
     return next;
   }
 
+  /** Makes the tunnel, or takes over the one already named "renver" in this account (its routes are then replaced by RenVer's). */
+  async function createOrAdoptTunnel(client: CloudflareClient, accountId: string): Promise<string> {
+    try {
+      return await client.createTunnel(accountId, TUNNEL_NAME);
+    } catch (error) {
+      if (!isNameTaken(error)) throw error;
+      const existing = await client.findTunnel(accountId, TUNNEL_NAME);
+      if (!existing) throw error;
+      return existing;
+    }
+  }
+
   async function ensureTunnel(client: CloudflareClient, accountId: string): Promise<Tunnel> {
     const existing = readTunnel();
     if (existing) {
@@ -146,7 +159,7 @@ export function createCloudflareService(deps: Deps) {
       }
       return existing;
     }
-    const tunnelId = await client.createTunnel(accountId, TUNNEL_NAME);
+    const tunnelId = await createOrAdoptTunnel(client, accountId);
     const runToken = await client.getTunnelToken(accountId, tunnelId);
     const tunnel = { accountId, tunnelId, runToken };
     store.set(TUNNEL_KEY, deps.encrypt(tunnel));

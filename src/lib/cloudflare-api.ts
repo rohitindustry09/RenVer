@@ -88,6 +88,12 @@ export function createCloudflareClient(token: string, fetchImpl: Fetch = fetch) 
       return tunnel.id;
     },
 
+    /** The id of the live tunnel with this name, or null. */
+    async findTunnel(accountId: string, name: string): Promise<string | null> {
+      const tunnels = await call<{ id: string }[]>(`/accounts/${accountId}/cfd_tunnel?name=${encodeURIComponent(name)}&is_deleted=false`);
+      return tunnels[0]?.id ?? null;
+    },
+
     getTunnelToken: (accountId: string, tunnelId: string) => call<string>(`/accounts/${accountId}/cfd_tunnel/${tunnelId}/token`),
 
     async deleteTunnel(accountId: string, tunnelId: string): Promise<void> {

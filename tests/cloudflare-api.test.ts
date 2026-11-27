@@ -62,6 +62,14 @@ describe("cloudflare client", () => {
     expect(calls[1]!.url).toContain("/accounts/a1/cfd_tunnel/t1/token");
   });
 
+  it("finds a live tunnel by name", async () => {
+    const { impl, calls } = fakeFetch([ok([{ id: "t9" }]), ok([])]);
+    const client = createCloudflareClient("tok", impl);
+    expect(await client.findTunnel("a1", "renver")).toBe("t9");
+    expect(calls[0]!.url).toContain("/accounts/a1/cfd_tunnel?name=renver&is_deleted=false");
+    expect(await client.findTunnel("a1", "other")).toBeNull();
+  });
+
   it("replaces the tunnel's ingress rules", async () => {
     const { impl, calls } = fakeFetch([ok({})]);
     await createCloudflareClient("tok", impl).putIngress("a1", "t1", [{ hostname: "x.domain.com", service: "http://127.0.0.1:4001" }, { service: "http_status:404" }]);
