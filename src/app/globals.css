@@ -684,6 +684,16 @@ kbd {
 .step[data-state="done"] .step-title { color: var(--text); }
 .step[data-state="done"] .step-text { color: var(--text-2); }
 
+/* Commits waiting on GitHub: a short hash beside what changed. */
+.commit-list { list-style: none; margin: 0; padding: 0; border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg-subtle); }
+.commit-list li { display: flex; gap: 12px; align-items: baseline; padding: 8px 14px; font-size: 13px; }
+.commit-list li + li { border-top: 1px solid var(--border); }
+.commit-list li > span:last-child { min-width: 0; overflow-wrap: anywhere; }
+
+/* "New commit on GitHub" bar on a project: the message, then the button that deploys it. */
+.update-banner { align-items: center; }
+@media (max-width: 600px) { .update-banner { flex-wrap: wrap; } .update-banner .btn { width: 100%; } }
+
 /* A public address shown prominently, with its actions beside it. */
 .link-box {
   display: flex; align-items: center; gap: 12px; flex-wrap: wrap;

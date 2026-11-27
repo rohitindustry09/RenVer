@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 import { missingRequirements, useSystem } from "@/hooks/useSystem";
 import { useFetch } from "@/hooks/useFetch";
+import type { UpdateCheck } from "@/lib/update-check";
 import { useProjects } from "@/hooks/useProjects";
 import { prefetchRoute } from "@/lib/client-cache";
 import { Logo } from "../Logo";
@@ -39,11 +40,17 @@ interface Props {
   onFind: () => void;
 }
 
+/** How often the sidebar asks whether GitHub has a newer RenVer. */
+const UPDATE_WATCH_MS = 60_000;
+
 export function Sidebar({ onFind }: Props) {
   const pathname = usePathname();
   const { projects } = useProjects();
   const { data: system } = useSystem();
   const { data: settings } = useFetch<{ passwordProtected: boolean }>("/api/settings");
+  // A dot on Settings when GitHub has a newer RenVer; the Update card there has the details.
+  const { data: updateCheck } = useFetch<UpdateCheck | null>("/api/system/update/check", UPDATE_WATCH_MS);
+  const updateCount = updateCheck?.behind ?? 0;
   const missing = missingRequirements(system);
 
   return (
@@ -76,6 +83,11 @@ export function Sidebar({ onFind }: Props) {
                 {entry.icon}
                 <span>{entry.label}</span>
                 {entry.href === "/" && projects && projects.length > 0 && <span className="nav-count">{projects.length}</span>}
+                {entry.href === "/settings" && updateCount > 0 && (
+                  <span className="nav-count warn" title={`${updateCount} RenVer update${updateCount === 1 ? "" : "s"} available`}>
+                    {updateCount}
+                  </span>
+                )}
               </Link>
             ))}
           </div>

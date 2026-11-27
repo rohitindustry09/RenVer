@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { FrameworkIcon } from "@/components/FrameworkIcon";
 import { ProjectCardMenu } from "@/components/ProjectCardMenu";
+import type { ProjectUpdate, ProjectUpdates } from "@/lib/project-watch";
 import { ProjectGauges } from "@/components/ProjectGauges";
 import { stackLabel, stackOf } from "@/lib/stack";
 import { GithubIcon, GridIcon, ListIcon, SearchIcon, ZipIcon, BellIcon } from "@/components/shell/icons";
@@ -19,6 +20,7 @@ import type { LiveUsage } from "@/lib/live-usage";
 import type { Usage } from "@/lib/usage";
 
 const USAGE_REFRESH_MS = 15000;
+const WATCH_REFRESH_MS = 30000;
 const LIVE_REFRESH_MS = 6000;
 const DEPLOYS_REFRESH_MS = 5000;
 const WARN_RATIO = 0.75;
@@ -129,7 +131,7 @@ function RecentDeployments({ deploys }: { deploys: DeployWithProject[] }) {
   );
 }
 
-function ProjectCard({ project, live, onChanged }: { project: ProjectListItem; live: LiveUsage | null; onChanged: () => void }) {
+function ProjectCard({ project, live, update, onChanged }: { project: ProjectListItem; live: LiveUsage | null; update: ProjectUpdate | null; onChanged: () => void }) {
   const source = project.source;
   return (
     <div className="card link project-card">
@@ -149,7 +151,8 @@ function ProjectCard({ project, live, onChanged }: { project: ProjectListItem; l
         <div className="line faint">
           <span>{source?.source === "github" ? <GithubIcon /> : <ZipIcon size={14} />}</span>
           <span className="ellipsis">{source ? source.label : stackLabel(stackOf(project.config))}{source?.branch ? ` · ${source.branch}` : ""}</span>
-          <span style={{ marginLeft: "auto", flexShrink: 0 }}>{timeAgo(project.createdAt)}</span>
+          {update && <span className="badge warn" style={{ marginLeft: "auto", flexShrink: 0 }} title={`New commit ${update.latest} on GitHub`}>Update available</span>}
+          <span style={{ marginLeft: update ? 0 : "auto", flexShrink: 0 }}>{timeAgo(project.createdAt)}</span>
         </div>
         <ProjectGauges isRunning={project.status === "running"} live={live} project={live?.projects[project.id]} />
       </div>
@@ -162,6 +165,9 @@ export default function OverviewPage() {
   const usage = useFetch<Usage>("/api/usage", USAGE_REFRESH_MS).data;
   const live = useFetch<LiveUsage>("/api/usage/live", LIVE_REFRESH_MS).data ?? null;
   const alerts = useFetch<Alert[]>("/api/alerts", USAGE_REFRESH_MS).data;
+  // Projects from GitHub whose branch has a commit that is not deployed yet, checked every 30 seconds.
+  const watched = useFetch<ProjectUpdates>("/api/projects/updates", WATCH_REFRESH_MS).data;
+  const updates = useMemo(() => new Map((watched?.updates ?? []).filter((u) => u.hasUpdate).map((u) => [u.projectId, u] as const)), [watched]);
   const deploys = useFetch<DeployWithProject[]>(`/api/deployments?limit=${RECENT_DEPLOYS}`, DEPLOYS_REFRESH_MS).data;
   const [query, setQuery] = useState("");
   const [view, setView] = useState<ViewMode>("grid");
@@ -213,7 +219,7 @@ export default function OverviewPage() {
           )}
           {projects && projects.length > 0 && visible.length === 0 && <p className="sub">No projects match “{query}”.</p>}
           <div className="cards" style={view === "list" ? { gridTemplateColumns: "1fr" } : undefined}>
-            {visible.map((p) => <ProjectCard key={p.id} project={p} live={live} onChanged={() => void reload()} />)}
+            {visible.map((p) => <ProjectCard key={p.id} project={p} live={live} update={updates.get(p.id) ?? null} onChanged={() => void reload()} />)}
           </div>
         </section>
       </div>

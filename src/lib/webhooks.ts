@@ -30,6 +30,13 @@ export function githubSourceFor(projectId: string): { repo: string; branch: stri
   return source?.source === "github" ? { repo: source.label, branch: source.branch } : null;
 }
 
+/** Where a project's deployed code came from, including the exact commit, or null if it came from a zip file. */
+export function githubDeployedFor(projectId: string): { repo: string; branch: string | null; commit: string | null } | null {
+  const uploadId = latestUploadId(projectId);
+  const source = uploadId ? readUploadSource(uploadId) : null;
+  return source?.source === "github" ? { repo: source.label, branch: source.branch, commit: source.commit ?? null } : null;
+}
+
 /** Fetches the latest code from GitHub and deploys it. Builds run one after another, so a push during a build is queued. */
 export async function deployFromPush(projectId: string): Promise<{ deployId: string }> {
   const project = getProject(projectId);

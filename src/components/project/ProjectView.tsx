@@ -10,13 +10,17 @@ import { stackOf } from "@/lib/stack";
 import { api } from "@/lib/client-api";
 import { hostUrl } from "@/lib/domain-names";
 import { isBusyStatus, statusLabel } from "@/lib/format";
+import type { ProjectUpdates } from "@/lib/project-watch";
 import { DeploymentsTab } from "./DeploymentsTab";
 import { OverviewTab } from "./OverviewTab";
+import { ProjectUpdateBanner } from "./ProjectUpdateBanner";
 import { RuntimeTab } from "./RuntimeTab";
 import { SettingsTab } from "./SettingsTab";
 import { PROJECT_TABS, type ProjectDetail, type ProjectTab } from "./types";
 
 const REFRESH_MS = 4000;
+/** How often the page asks whether GitHub has a newer commit for this project. */
+const WATCH_MS = 30_000;
 
 function parseTab(value: string | null): ProjectTab {
   return PROJECT_TABS.some((t) => t.id === value) ? (value as ProjectTab) : "overview";
@@ -26,6 +30,7 @@ export function ProjectView() {
   const { id } = useParams<{ id: string }>();
   const search = useSearchParams();
   const { data, error, reload } = useFetch<ProjectDetail>(`/api/projects/${id}`, REFRESH_MS);
+  const { data: watch } = useFetch<ProjectUpdates>("/api/projects/updates", WATCH_MS);
 
   const [tab, setTab] = useState<ProjectTab>(parseTab(search.get("tab")));
   const [activeDeploy, setActiveDeploy] = useState<string | null>(search.get("deploy"));
@@ -47,6 +52,8 @@ export function ProjectView() {
   const host = project.primaryHost;
   const url = hostUrl(host);
   const isLive = project.status === "running";
+  const update = watch?.updates.find((u) => u.projectId === project.id && u.hasUpdate) ?? null;
+  const isUpdating = isPulling || isRedeploying || project.status === "deploying";
 
   const openDeploy = (deployId: string) => {
     setActiveDeploy(deployId);
@@ -104,7 +111,7 @@ export function ProjectView() {
           {data.github && (
             <button
               type="button"
-              className="btn"
+              className={`btn${update ? " primary" : ""}`}
               title={`Fetch the newest code from ${data.github.repo} on GitHub and deploy it`}
               disabled={isPulling || isRedeploying || project.status === "deploying"}
               onClick={() => void pullLatest()}
@@ -123,6 +130,11 @@ export function ProjectView() {
         </div>
       </div>
       {actionError && <p className="notice error" role="alert" style={{ marginBottom: 16 }}>{actionError}</p>}
+      {update && (
+        <div style={{ marginBottom: 16 }}>
+          <ProjectUpdateBanner update={update} isBusy={isUpdating} onPull={() => void pullLatest()} />
+        </div>
+      )}
 
       <div className="subtabs" role="tablist" aria-label="Project sections">
         {PROJECT_TABS.map((t) => (
