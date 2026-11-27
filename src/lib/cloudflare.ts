@@ -19,11 +19,19 @@ interface RunnerPort {
   state(): { running: boolean; connected: boolean; error: string | null };
 }
 
+interface PanelPort {
+  host(): string | null;
+  port(): number;
+  /** Whether the panel asks for a password. Without one it must never be put on the internet. */
+  isProtected(): boolean;
+}
+
 interface Deps {
   store: CloudflareStore;
   client: (token: string) => CloudflareClient;
   runner: RunnerPort;
   domains: DomainsPort;
+  panel: PanelPort;
   encrypt: (value: Record<string, string>) => string | null;
   decrypt: (stored: string | null) => Record<string, string>;
 }
@@ -100,7 +108,14 @@ export function createCloudflareService(deps: Deps) {
     const errors: string[] = [];
     const owner = (host: string) => cfDomains.find((d) => belongsTo(host, d.name));
 
-    const routes = domains.runningRoutes().flatMap((r) => r.hosts.filter((h) => owner(h)).map((host) => ({ host, port: r.port })));
+    const appRoutes = domains.runningRoutes().flatMap((r) => r.hosts.filter((h) => owner(h)).map((host) => ({ host, port: r.port })));
+    const panelHost = deps.panel.host();
+    const isPanelOnCloudflare = panelHost !== null && owner(panelHost) !== undefined;
+    const isPanelAllowed = isPanelOnCloudflare && deps.panel.isProtected();
+    if (isPanelOnCloudflare && !isPanelAllowed) {
+      errors.push(`The panel address ${panelHost} is on Cloudflare, but no admin password is set, so RenVer will not put the panel on the internet. Set RENVER_ADMIN_PASSWORD and restart.`);
+    }
+    const routes = [...appRoutes, ...(isPanelAllowed && panelHost ? [{ host: panelHost, port: deps.panel.port() }] : [])];
     try {
       await client.putIngress(tunnel.accountId, tunnel.tunnelId, buildIngress(routes));
     } catch (error) {
@@ -108,7 +123,7 @@ export function createCloudflareService(deps: Deps) {
     }
 
     const tracked = readRecords();
-    const plan = planDns(cfDomains.flatMap((d) => domains.hosts(d.id)), tracked);
+    const plan = planDns([...cfDomains.flatMap((d) => domains.hosts(d.id)), ...(isPanelAllowed && panelHost ? [panelHost] : [])], tracked);
     for (const host of plan.create) {
       const zoneId = owner(host)?.zoneId;
       if (!zoneId) continue;
@@ -210,6 +225,9 @@ export function createCloudflareService(deps: Deps) {
     },
 
     isCloudflareDomain: (domainId: string): boolean => domainId in readZones(),
+
+    /** Whether Cloudflare serves this hostname (it is a connected domain or a name under one). */
+    isCloudflareHost: (host: string): boolean => connectedDomains().some((d) => belongsTo(host, d.name)),
 
     /** Running apps' routes for Caddy, without the hostnames Cloudflare serves (Caddy must not chase certificates for them). */
     proxyRoutes(): { hosts: string[]; port: number }[] {

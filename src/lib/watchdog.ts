@@ -43,7 +43,7 @@ function realDeps(): ReconcileDeps {
       liveHosts: () => getLiveRouteHosts(),
       desiredHosts: () => [
         ...cloudflare().proxyRoutes().flatMap((route) => route.hosts),
-        ...(getPanelHost() ? [getPanelHost() as string] : []),
+        ...(getPanelHost() && !cloudflare().isCloudflareHost(getPanelHost() as string) ? [getPanelHost() as string] : []),
       ],
       apply: () => syncProxy(() => undefined),
     },

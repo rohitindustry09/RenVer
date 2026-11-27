@@ -102,9 +102,16 @@ export async function removeRelease(container: string): Promise<void> {
 }
 
 /** Sends every running project's route to Caddy. Returns whether Caddy accepted the config. */
+/** The panel address Caddy should serve, or null when there is none or Cloudflare serves it. */
+function caddyPanelHost(): string | null {
+  const host = getPanelHost();
+  return host && !cloudflare().isCloudflareHost(host) ? host : null;
+}
+
 export async function syncProxy(log: Log): Promise<boolean> {
   const caddyConfig = buildCaddyConfig(cloudflare().proxyRoutes(), {
-    panel: getPanelHost() ? { hosts: [getPanelHost() as string], port: config.panelPort } : undefined,
+    // A panel address served through Cloudflare is reached by the tunnel, so Caddy must not chase a certificate for it.
+    panel: caddyPanelHost() ? { hosts: [caddyPanelHost() as string], port: config.panelPort } : undefined,
   });
   try {
     await ensureCaddyRunning(path.join(config.dataDir, "caddy-bootstrap.json"));

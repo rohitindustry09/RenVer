@@ -9,7 +9,7 @@ function memoryStore(): CloudflareStore {
 
 const zone = (over: Partial<Zone> = {}): Zone => ({ id: "z1", name: "domain.com", status: "active", accountId: "a1", nameServers: ["a.ns.cloudflare.com", "b.ns.cloudflare.com"], ...over });
 
-function setup(opts: { zone?: Zone | null; records?: Record<string, { id: string; type: string; name: string; content: string }[]> } = {}) {
+function setup(opts: { zone?: Zone | null; records?: Record<string, { id: string; type: string; name: string; content: string }[]>; panelHost?: string | null; protectedPanel?: boolean } = {}) {
   const calls: string[] = [];
   const records = opts.records ?? {};
   const client = {
@@ -39,6 +39,7 @@ function setup(opts: { zone?: Zone | null; records?: Record<string, { id: string
       runningRoutes: () => routes,
       markVerified: (id) => void verified.push(id),
     },
+    panel: { host: () => (opts.panelHost === undefined ? null : opts.panelHost), port: () => 3000, isProtected: () => opts.protectedPanel ?? true },
     encrypt: (v) => JSON.stringify(v),
     decrypt: (s) => (s ? (JSON.parse(s) as Record<string, string>) : {}),
   });
@@ -199,6 +200,49 @@ describe("syncing", () => {
     const ctx = setup();
     expect(await ctx.service.sync()).toEqual({ skipped: true, errors: [] });
     expect(ctx.client.putIngress).not.toHaveBeenCalled();
+  });
+});
+
+describe("the panel's own address", () => {
+  async function connected(opts: Parameters<typeof setup>[0]) {
+    const ctx = setup(opts);
+    await ctx.service.saveToken("tok");
+    await ctx.service.connectDomain("d1");
+    ctx.calls.length = 0;
+    return ctx;
+  }
+
+  it("is routed to the panel's port and gets a DNS record when it is on a Cloudflare domain", async () => {
+    const ctx = await connected({ panelHost: "panel.domain.com" });
+    const result = await ctx.service.sync();
+    expect(ctx.client.putIngress).toHaveBeenLastCalledWith("a1", "t1", [
+      { hostname: "panel.domain.com", service: "http://127.0.0.1:3000" },
+      { service: "http_status:404" },
+    ]);
+    expect(ctx.client.createCname).toHaveBeenCalledWith("z1", "panel.domain.com", "t1.cfargotunnel.com");
+    expect(result.errors).toEqual([]);
+  });
+
+  it("is never put on the internet without an admin password", async () => {
+    const ctx = await connected({ panelHost: "panel.domain.com", protectedPanel: false });
+    const result = await ctx.service.sync();
+    expect(ctx.client.putIngress).toHaveBeenLastCalledWith("a1", "t1", [{ service: "http_status:404" }]);
+    expect(ctx.client.createCname).not.toHaveBeenCalled();
+    expect(result.errors.join(" ")).toMatch(/password/i);
+  });
+
+  it("is left alone when it is on a domain that is not served through Cloudflare", async () => {
+    const ctx = await connected({ panelHost: "panel.other.org" });
+    const result = await ctx.service.sync();
+    expect(ctx.client.putIngress).toHaveBeenLastCalledWith("a1", "t1", [{ service: "http_status:404" }]);
+    expect(result.errors).toEqual([]);
+  });
+
+  it("is recognised as a Cloudflare hostname so Caddy skips it", async () => {
+    const ctx = await connected({});
+    expect(ctx.service.isCloudflareHost("panel.domain.com")).toBe(true);
+    expect(ctx.service.isCloudflareHost("domain.com")).toBe(true);
+    expect(ctx.service.isCloudflareHost("panel.other.org")).toBe(false);
   });
 });
 

@@ -3,6 +3,9 @@ import { createCloudflareService } from "./cloudflare";
 import { cloudflaredRunner } from "./cloudflared-run";
 import { getDomain, getSetting, listHostsForDomain, listRunningRoutes, markDomainVerified, setSetting } from "./db";
 import { isLocalDomain } from "./domain-names";
+import { config } from "./config";
+import { adminPassword } from "./login";
+import { getPanelHost } from "./panel-host";
 import { decryptEnv, encryptEnv } from "./secrets";
 
 type Service = ReturnType<typeof createCloudflareService>;
@@ -27,6 +30,7 @@ export function cloudflare(): Service {
       runningRoutes: listRunningRoutes,
       markVerified: markDomainVerified,
     },
+    panel: { host: getPanelHost, port: () => config.panelPort, isProtected: () => adminPassword() !== undefined },
     encrypt: encryptEnv,
     decrypt: decryptEnv,
   });

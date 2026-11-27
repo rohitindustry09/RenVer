@@ -74,7 +74,7 @@ export function PanelAddressCard({ host, verifiedDomains, onSaved }: Props) {
               />
             </label>
             <p className="small muted" id="panel-address-hint">
-              Needs a DNS record for this name pointing at the server (the <span className="mono">*</span> record on the Domains page covers it) and ports 80 and 443 open. Leave it empty to keep the panel private. Changes apply at once, with no restart.
+              On a domain served through Cloudflare, RenVer adds the DNS record and tunnel rule itself: no router settings or open ports. Otherwise it needs a DNS record pointing at the server (the <span className="mono">*</span> record on the Domains page covers it) and ports 80 and 443 open. Anyone who finds this address can reach the sign-in page, so keep a strong admin password and turn on two-factor login. Leave it empty to keep the panel private. Changes apply at once, with no restart.
             </p>
           </>
         )}
