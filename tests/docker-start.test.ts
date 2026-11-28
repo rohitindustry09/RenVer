@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { dockerStartPlan } from "@/lib/docker-start";
+import { dockerRestartPlan, dockerStartPlan } from "@/lib/docker-start";
 
 describe("dockerStartPlan", () => {
   it("starts Docker Desktop through PowerShell on Windows, from its normal install folder", () => {
@@ -46,5 +46,32 @@ describe("dockerStartPlan", () => {
 
   it("reports an unsupported system", () => {
     expect(dockerStartPlan("freebsd", true, {}).ok).toBe(false);
+  });
+});
+
+describe("dockerRestartPlan", () => {
+  it("on Windows closes Docker Desktop, shuts WSL down and starts Docker Desktop again, waiting for it", () => {
+    const result = dockerRestartPlan("win32", false, { ProgramFiles: "C:\\Program Files" });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const script = result.plan.args.join(" ");
+    expect(result.plan.command).toBe("powershell.exe");
+    expect(script).toContain("Stop-Process -Name 'Docker Desktop'");
+    expect(script).toContain("wsl.exe --shutdown");
+    expect(script).toContain("Start-Process");
+    expect(script).toContain("C:\\Program Files\\Docker\\Docker\\Docker Desktop.exe");
+    expect(script.indexOf("--shutdown")).toBeLessThan(script.indexOf("Start-Process"));
+    expect(result.plan.isDetached).toBe(false);
+  });
+
+  it("restarts the Docker service on Linux as root, and explains that it needs root otherwise", () => {
+    const ok = dockerRestartPlan("linux", true, {});
+    expect(ok.ok && ok.plan.args).toEqual(["restart", "docker"]);
+    expect(dockerRestartPlan("linux", false, {}).ok).toBe(false);
+  });
+
+  it("opens Docker Desktop on macOS", () => {
+    const result = dockerRestartPlan("darwin", false, {});
+    expect(result.ok && result.plan.command).toBe("open");
   });
 });

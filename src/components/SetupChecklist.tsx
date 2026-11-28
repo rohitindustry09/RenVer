@@ -1,12 +1,12 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { ConfirmDialog } from "./ConfirmDialog";
+import { DockerDoctor } from "./DockerDoctor";
 import { LogPanel } from "./LogPanel";
 import { useInstaller } from "@/hooks/useInstaller";
 import { missingRequirements, OPTIONAL_TOOLS, REQUIRED_TOOLS, useSystem, type InstallHint } from "@/hooks/useSystem";
-import { api } from "@/lib/client-api";
 import type { CheckResult } from "@/lib/preflight";
 import { SETUP_COOKIE } from "@/lib/setup-gate";
 
@@ -19,10 +19,6 @@ const REQUIREMENT_COPY: Record<string, { title: string; description: string }> =
 };
 
 const ONE_YEAR_SECONDS = 60 * 60 * 24 * 365;
-/** Docker can take a minute or two to come up, so it is checked every few seconds, but only for a limited time. */
-const DOCKER_POLL_MS = 3000;
-const DOCKER_WAIT_MS = 3 * 60 * 1000;
-
 function markSetupDone(): void {
   document.cookie = `${SETUP_COOKIE}=1; path=/; max-age=${ONE_YEAR_SECONDS}; samesite=lax`;
 }
@@ -33,14 +29,11 @@ interface RequirementRowProps {
   isInstalling: boolean;
   isBusy: boolean;
   onInstall: (check: CheckResult, hint: InstallHint) => void;
-  /** Docker installed but not running: a button to start it, with what is happening or what went wrong. */
-  dockerStart?: { isStarting: boolean; message: string | null; error: string | null; onStart: () => void };
 }
 
-function RequirementRow({ check, hint, isInstalling, isBusy, onInstall, dockerStart }: RequirementRowProps) {
+function RequirementRow({ check, hint, isInstalling, isBusy, onInstall }: RequirementRowProps) {
   const copy = REQUIREMENT_COPY[check.id];
   const canInstall = check.status === "missing" && check.fixable && hint?.available;
-  const canStartDocker = check.id === "docker" && check.status === "warn" && dockerStart !== undefined;
   return (
     <li className="row">
       <span className={`dot ${check.status}`} aria-hidden="true" />
@@ -50,19 +43,12 @@ function RequirementRow({ check, hint, isInstalling, isBusy, onInstall, dockerSt
         {check.status === "missing" && hint && !hint.available && (
           <div className="row-desc" style={{ color: "var(--warning)" }}>{hint.text}</div>
         )}
-        {canStartDocker && dockerStart.isStarting && <div className="row-desc">{dockerStart.message ?? "Starting Docker… this can take a minute or two."}</div>}
-        {canStartDocker && dockerStart.error && <div className="row-desc" style={{ color: "var(--error)" }}>{dockerStart.error}</div>}
       </div>
       <div className="row-end">
         {check.status === "ok" && <span className="badge">Installed</span>}
         {canInstall && (
           <button type="button" className="btn sm primary" disabled={isBusy} onClick={() => onInstall(check, hint)}>
             {isInstalling ? "Installing…" : "Install"}
-          </button>
-        )}
-        {canStartDocker && (
-          <button type="button" className="btn sm primary" disabled={isBusy || dockerStart.isStarting} onClick={dockerStart.onStart}>
-            {dockerStart.isStarting ? "Starting…" : "Start Docker"}
           </button>
         )}
       </div>
@@ -75,40 +61,9 @@ export function SetupChecklist() {
   const { data, error, isLoading, reload } = useSystem();
   const installer = useInstaller(() => reload(true));
 
-  const [docker, setDocker] = useState<{ isStarting: boolean; message: string | null; error: string | null }>({ isStarting: false, message: null, error: null });
-  const isMounted = useRef(true);
-  useEffect(() => {
-    isMounted.current = true;
-    return () => {
-      isMounted.current = false;
-    };
-  }, []);
-
-  /** Starts Docker, then asks every few seconds whether it answers, for a limited time. */
-  const startDocker = async () => {
-    setDocker({ isStarting: true, message: null, error: null });
-    const startedAt = Date.now();
-    try {
-      const started = await api<{ message: string }>("/api/system/docker", { method: "POST" });
-      if (isMounted.current) setDocker({ isStarting: true, message: started.message, error: null });
-      while (isMounted.current && Date.now() - startedAt < DOCKER_WAIT_MS) {
-        await new Promise((resolve) => setTimeout(resolve, DOCKER_POLL_MS));
-        const seconds = Math.round((Date.now() - startedAt) / 1000);
-        if (isMounted.current) setDocker({ isStarting: true, message: `Waiting for Docker to answer… ${seconds}s`, error: null });
-        const { running } = await api<{ running: boolean }>("/api/system/docker");
-        if (running) {
-          await reload(true);
-          if (isMounted.current) setDocker({ isStarting: false, message: null, error: null });
-          return;
-        }
-      }
-      if (isMounted.current) {
-        setDocker({ isStarting: false, message: null, error: "Docker did not answer within 3 minutes. Check Docker Desktop (it may be asking for something), then press Re-check." });
-      }
-    } catch (e) {
-      if (isMounted.current) setDocker({ isStarting: false, message: null, error: e instanceof Error ? e.message : "Could not start Docker." });
-    }
-  };
+  /** Raised by "Fix everything", so the Docker doctor also does its safe fix once the installs are done. */
+  const [fixSignal, setFixSignal] = useState(0);
+  const [isFixing, setIsFixing] = useState(false);
 
   const requirements = REQUIRED_TOOLS.map((id) => data?.checks.find((c) => c.id === id)).filter(
     (c): c is CheckResult => c !== undefined,
@@ -129,6 +84,21 @@ export function SetupChecklist() {
   const confirmInstall = () => {
     if (pendingInstall) void installer.start(pendingInstall.check.id);
     setPendingInstall(null);
+  };
+
+  const isDockerDown = requirements.some((c) => c.id === "docker" && c.status === "warn");
+  const installable = requirements.filter((c) => c.status === "missing" && c.fixable && data?.installHints[c.id]?.available);
+  const canFix = installable.length > 0 || isDockerDown;
+
+  /** Installs what is missing, one tool after another, then lets the Docker doctor start Docker if it is stopped. */
+  const fixEverything = async () => {
+    setIsFixing(true);
+    try {
+      for (const check of installable) await installer.start(check.id);
+      setFixSignal((count) => count + 1);
+    } finally {
+      setIsFixing(false);
+    }
   };
 
   const handleContinue = () => {
@@ -169,10 +139,10 @@ export function SetupChecklist() {
               isInstalling={installer.installing === check.id}
               isBusy={installer.installing !== null}
               onInstall={handleInstall}
-              dockerStart={{ ...docker, onStart: () => void startDocker() }}
             />
           ))}
         </ul>
+        {isDockerDown && <DockerDoctor fixSignal={fixSignal} onChanged={() => reload(true)} />}
         {(installer.installing || installer.log) && (
           <div className="card-pad" style={{ borderTop: "1px solid var(--border)" }}>
             <div className="status" style={{ marginBottom: 12 }} role="status">
@@ -224,9 +194,16 @@ export function SetupChecklist() {
       </section>
 
       <div className="toolbar" style={{ justifyContent: "space-between" }}>
-        <button type="button" className="btn" disabled={isLoading || installer.installing !== null} onClick={() => reload(true)}>
-          {isLoading ? "Checking…" : "Re-check"}
-        </button>
+        <div className="toolbar">
+          <button type="button" className="btn" disabled={isLoading || installer.installing !== null || isFixing} onClick={() => reload(true)}>
+            {isLoading ? "Checking…" : "Re-check"}
+          </button>
+          {canFix && (
+            <button type="button" className="btn primary" disabled={isFixing || installer.installing !== null} onClick={() => void fixEverything()}>
+              {isFixing ? "Fixing…" : "Fix everything"}
+            </button>
+          )}
+        </div>
         <div className="toolbar">
           {!isReady && (
             <button type="button" className="btn ghost" onClick={handleContinue}>

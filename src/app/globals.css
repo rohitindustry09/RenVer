@@ -694,6 +694,14 @@ kbd {
 .update-banner { align-items: center; }
 @media (max-width: 600px) { .update-banner { flex-wrap: wrap; } .update-banner .btn { width: 100%; } }
 
+/* The Docker check on the Setup page: each step with a tick, a cross or a dash. */
+.doctor-steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.doctor-steps li { display: flex; gap: 10px; align-items: baseline; font-size: 13px; }
+.doctor-steps .mark { width: 14px; flex-shrink: 0; text-align: center; font-weight: 700; }
+.doctor-steps .mark.ok { color: var(--success); }
+.doctor-steps .mark.fail { color: var(--error); }
+.doctor-steps .mark.unknown { color: var(--text-3); }
+
 /* A public address shown prominently, with its actions beside it. */
 .link-box {
   display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
