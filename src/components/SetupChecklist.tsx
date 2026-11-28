@@ -5,9 +5,8 @@ import { useEffect, useRef, useState } from "react";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { LogPanel } from "./LogPanel";
 import { useInstaller } from "@/hooks/useInstaller";
-import { missingRequirements, OPTIONAL_TOOLS, REQUIRED_TOOLS, useSystem, type InstallHint, type SystemData } from "@/hooks/useSystem";
+import { missingRequirements, OPTIONAL_TOOLS, REQUIRED_TOOLS, useSystem, type InstallHint } from "@/hooks/useSystem";
 import { api } from "@/lib/client-api";
-import { clientCache } from "@/lib/client-cache";
 import type { CheckResult } from "@/lib/preflight";
 import { SETUP_COOKIE } from "@/lib/setup-gate";
 
@@ -20,9 +19,9 @@ const REQUIREMENT_COPY: Record<string, { title: string; description: string }> =
 };
 
 const ONE_YEAR_SECONDS = 60 * 60 * 24 * 365;
-/** Docker can take a minute or two to come up, so the checks are repeated for a while after it is started. */
-const DOCKER_POLL_MS = 4000;
-const DOCKER_POLL_TRIES = 40;
+/** Docker can take a minute or two to come up, so it is checked every few seconds, but only for a limited time. */
+const DOCKER_POLL_MS = 3000;
+const DOCKER_WAIT_MS = 3 * 60 * 1000;
 
 function markSetupDone(): void {
   document.cookie = `${SETUP_COOKIE}=1; path=/; max-age=${ONE_YEAR_SECONDS}; samesite=lax`;
@@ -85,22 +84,27 @@ export function SetupChecklist() {
     };
   }, []);
 
-  /** Starts Docker, then repeats the system check until Docker answers (or it takes too long). */
+  /** Starts Docker, then asks every few seconds whether it answers, for a limited time. */
   const startDocker = async () => {
     setDocker({ isStarting: true, message: null, error: null });
+    const startedAt = Date.now();
     try {
       const started = await api<{ message: string }>("/api/system/docker", { method: "POST" });
       if (isMounted.current) setDocker({ isStarting: true, message: started.message, error: null });
-      for (let attempt = 0; attempt < DOCKER_POLL_TRIES && isMounted.current; attempt++) {
+      while (isMounted.current && Date.now() - startedAt < DOCKER_WAIT_MS) {
         await new Promise((resolve) => setTimeout(resolve, DOCKER_POLL_MS));
-        const fresh = await api<SystemData>("/api/system?fresh=1");
-        clientCache.set("/api/system", fresh);
-        if (fresh.checks.find((c) => c.id === "docker")?.status === "ok") {
+        const seconds = Math.round((Date.now() - startedAt) / 1000);
+        if (isMounted.current) setDocker({ isStarting: true, message: `Waiting for Docker to answer… ${seconds}s`, error: null });
+        const { running } = await api<{ running: boolean }>("/api/system/docker");
+        if (running) {
+          await reload(true);
           if (isMounted.current) setDocker({ isStarting: false, message: null, error: null });
           return;
         }
       }
-      if (isMounted.current) setDocker({ isStarting: false, message: null, error: "Docker did not come up yet. Open Docker Desktop and check that it started, then press Re-check." });
+      if (isMounted.current) {
+        setDocker({ isStarting: false, message: null, error: "Docker did not answer within 3 minutes. Check Docker Desktop (it may be asking for something), then press Re-check." });
+      }
     } catch (e) {
       if (isMounted.current) setDocker({ isStarting: false, message: null, error: e instanceof Error ? e.message : "Could not start Docker." });
     }

@@ -10,7 +10,9 @@ describe("dockerStartPlan", () => {
     const script = result.plan.args.join(" ");
     expect(script).toContain("Start-Process");
     expect(script).toContain("C:\\Program Files\\Docker\\Docker\\Docker Desktop.exe");
-    expect(result.plan.isDetached).toBe(true);
+    // A failure to launch must show up as a failed command, so it is waited for (it returns as soon as the program has started).
+    expect(script).toContain("ErrorActionPreference");
+    expect(result.plan.isDetached).toBe(false);
   });
 
   it("falls back to the usual Program Files folder when the variable is missing", () => {

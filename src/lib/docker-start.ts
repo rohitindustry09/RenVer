@@ -1,4 +1,5 @@
 import { spawn } from "node:child_process";
+import { resolveBinary } from "./binaries";
 
 export interface DockerStartPlan {
   command: string;
@@ -26,9 +27,10 @@ export function dockerStartPlan(platform: string, isAdmin: boolean, env: Env): D
       ok: true,
       plan: {
         command: "powershell.exe",
-        args: ["-NoProfile", "-NonInteractive", "-Command", `Start-Process -FilePath ${psQuote(exe)}`],
+        // Start-Process returns as soon as Docker Desktop has started; if it cannot be started this exits with an error.
+        args: ["-NoProfile", "-NonInteractive", "-Command", `$ErrorActionPreference = 'Stop'; Start-Process -FilePath ${psQuote(exe)}`],
         description: "Start Docker Desktop",
-        isDetached: true,
+        isDetached: false,
       },
     };
   }
@@ -69,7 +71,33 @@ export function startDocker(now: number = Date.now()): Promise<StartOutcome> {
     child.on("close", (code) => {
       if (code === 0) return done({ ok: true, message: "Docker is starting." });
       lastStartAt = 0;
-      done({ ok: false, error: `The Docker service did not start (exit ${code}).` });
+      done({
+        ok: false,
+        error:
+          process.platform === "win32"
+            ? "Docker Desktop could not be started. Open it from the Start menu once (it must be installed and you must be signed in to Windows), then press Re-check."
+            : `Docker did not start (exit ${code}).`,
+      });
+    });
+  });
+}
+
+const CHECK_TIMEOUT_MS = 6000;
+
+/** Whether the Docker engine answers right now. A quick check on its own, much lighter than the full system check. */
+export function isDockerRunning(): Promise<boolean> {
+  return new Promise((done) => {
+    const child = spawn(resolveBinary("docker"), ["info", "--format", "{{.ServerVersion}}"], { stdio: ["ignore", "pipe", "ignore"], windowsHide: true });
+    let out = "";
+    const timer = setTimeout(() => child.kill(), CHECK_TIMEOUT_MS);
+    child.stdout.on("data", (chunk: Buffer) => void (out += chunk.toString("utf8")));
+    child.on("error", () => {
+      clearTimeout(timer);
+      done(false);
+    });
+    child.on("close", (code) => {
+      clearTimeout(timer);
+      done(code === 0 && out.trim() !== "");
     });
   });
 }
