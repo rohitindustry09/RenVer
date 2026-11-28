@@ -1,4 +1,5 @@
 import { spawn } from "node:child_process";
+import fs from "node:fs";
 import path from "node:path";
 import { inactiveDistDir, markBuildBad, markBuildGood } from "../../scripts/dist-select.mjs";
 import { RESTART_EXIT_CODE } from "../../scripts/supervise.mjs";
@@ -87,6 +88,16 @@ function restartPanel(): void {
   setTimeout(() => process.exit(RESTART_EXIT_CODE), RESTART_DELAY_MS);
 }
 
+/** Free space where the build is written, in MB, or null when the system will not say. */
+function freeDiskMb(): number | null {
+  try {
+    const stats = fs.statfsSync(process.cwd());
+    return Math.floor((Number(stats.bavail) * Number(stats.bsize)) / (1024 * 1024));
+  } catch {
+    return null;
+  }
+}
+
 const globalKey = Symbol.for("renver.update");
 type Holder = { [globalKey]?: Job };
 
@@ -101,7 +112,12 @@ export function updateJob(): Job {
     // When the owner chose the build folder (NEXT_DIST_DIR), the launcher does not switch folders, so neither do we.
     inactiveDir: () => (process.env.NEXT_DIST_DIR ? null : inactiveDistDir(process.cwd())),
     markGood: (dir) => markBuildGood(process.cwd(), dir),
-    markBad: (dir) => markBuildBad(process.cwd(), dir),
+    // A failed build is deleted completely: it is not being run, and a half-written one only wastes disk space.
+    markBad: (dir) => {
+      markBuildBad(process.cwd(), dir);
+      fs.rmSync(path.join(process.cwd(), dir), { recursive: true, force: true });
+    },
+    freeDiskMb: freeDiskMb,
     isSupervised: process.env.RENVER_SUPERVISED === "1",
     restart: restartPanel,
     now: Date.now,

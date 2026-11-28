@@ -19,6 +19,7 @@ interface Script {
   codes?: Record<string, number>; // exit code by step label
   supervised?: boolean;
   buildDir?: string | null;
+  freeMb?: number | null; // free disk space, null = unknown
 }
 
 function setup(script: Script = {}) {
@@ -41,6 +42,7 @@ function setup(script: Script = {}) {
     inactiveDir: () => (script.buildDir === undefined ? ".next-alt" : script.buildDir),
     markGood: (dir) => void marks.push(`good ${dir}`),
     markBad: (dir) => void marks.push(`bad ${dir}`),
+    freeDiskMb: () => (script.freeMb === undefined ? 50_000 : script.freeMb),
     isSupervised: script.supervised ?? true,
     restart,
     now: () => 1000,
@@ -136,6 +138,24 @@ describe("the update job", () => {
     await first;
   });
 
+  it("stops before building when the disk is nearly full, and says how much room there is", async () => {
+    const { job, steps, restart, marks } = setup({ freeMb: 600 });
+    await job.start({ force: false });
+    expect(steps).toEqual(["pull"]);
+    expect(restart).not.toHaveBeenCalled();
+    expect(marks).toEqual([]);
+    expect(job.state()).toMatchObject({ status: "failed" });
+    expect(job.state().message).toMatch(/disk space/i);
+    expect(job.state().message).toMatch(/0\.6 GB|600 MB/);
+    expect(job.state().message).toMatch(/still running the previous/i);
+  });
+
+  it("builds when the free space is not known", async () => {
+    const { job, steps } = setup({ freeMb: null });
+    await job.start({ force: false });
+    expect(steps).toEqual(["pull", "build"]);
+  });
+
   it("keeps the log of what happened", async () => {
     const { job, lines } = setup();
     await job.start({ force: false });
@@ -153,6 +173,7 @@ function setupDeps(): UpdateDeps {
     inactiveDir: () => ".next-alt",
     markGood: () => undefined,
     markBad: () => undefined,
+    freeDiskMb: () => 50_000,
     isSupervised: true,
     restart: () => undefined,
     now: () => 1,

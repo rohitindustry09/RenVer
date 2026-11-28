@@ -32,6 +32,8 @@ export interface UpdateDeps {
   inactiveDir(): string | null;
   markGood(dir: string): void;
   markBad(dir: string): void;
+  /** Free space on the disk the build writes to, in MB, or null when it cannot be read. */
+  freeDiskMb(): number | null;
   /** True when a launcher will start the panel again after it exits with the restart code. */
   isSupervised: boolean;
   restart(): void;
@@ -40,6 +42,8 @@ export interface UpdateDeps {
 
 const IDLE: UpdateState = { status: "idle", step: null, message: "", startedAt: null, finishedAt: null };
 const PREVIOUS_VERSION_NOTE = "The panel is still running the previous version.";
+/** A production build writes a few hundred MB (plus a cache), so less than this is not worth starting. */
+const MIN_FREE_MB = 2048;
 
 /** Pulls the latest code, installs packages if needed, builds into a spare folder, and asks for a restart. */
 export function createUpdateJob(deps: UpdateDeps) {
@@ -65,6 +69,14 @@ export function createUpdateJob(deps: UpdateDeps) {
     }
     const after = (await deps.read("git", ["rev-parse", "HEAD"])).trim();
     if (before === after && !force) return finish("done", "Already up to date. Nothing to build.");
+
+    const free = deps.freeDiskMb();
+    if (free !== null && free < MIN_FREE_MB) {
+      return finish(
+        "failed",
+        `Not enough disk space to build: ${(free / 1024).toFixed(1)} GB free, and a build needs about 2 GB. Free some space (Settings, Clean up the disk, removes Docker leftovers), then try again. ${PREVIOUS_VERSION_NOTE}`,
+      );
+    }
 
     const changed = before && after && before !== after ? (await deps.read("git", ["diff", "--name-only", before, after])).split("\n") : [];
     if (needsInstall(changed) && (await step("install", "npm", ["ci"])) !== 0) {
