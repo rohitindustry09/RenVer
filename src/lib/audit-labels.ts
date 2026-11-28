@@ -58,6 +58,7 @@ export const AUDIT_LABELS: Record<string, string> = {
   "system.cleanup": "Cleaned up the disk",
   "system.update": "Updated RenVer (pull, build, restart)",
   "system.install": "Installed a required tool",
+  "system.docker-start": "Started Docker",
   "system.proxy-sync": "Re-sent the proxy routes",
   "webhook.deploy": "Deployed from a GitHub push",
 };
